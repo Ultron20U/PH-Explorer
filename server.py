@@ -386,15 +386,13 @@ def get_hottest_videos(page=1, cc=""):
     if cached is not None:
         return cached
 
-    if cc_clean == "world":
-        params = {"o": "mv", "t": "w", "page": str(page)}
-    else:
-        params = {"o": "ht", "page": str(page)}
-        if cc_clean:
-            params["cc"] = cc_clean
+    params = {"o": "ht", "page": str(page)}
+    extra_headers = None
+    if cc_clean:
+        extra_headers = {"Cookie": f"accessAgeDisclaimerPH=1; overwriteCCVal={cc_clean}"}
 
     url = "https://www.pornhub.com/video?" + urllib.parse.urlencode(params)
-    page_html = http_get_text(url, timeout=14)
+    page_html = http_get_text(url, timeout=14, extra_headers=extra_headers)
     parsed = parse_hottest_listing_html(page_html)
     items = parsed["items"]
 
