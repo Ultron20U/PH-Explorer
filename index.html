@@ -1,0 +1,5609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PH Explorer</title>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f0f0f;
+      --bg-elevated: #181818;
+      --bg-control: #222222;
+      --bg-hover: #2c2c2c;
+      --border: #2a2a2a;
+      --border-subtle: #1f1f1f;
+      --accent: #ff9000;
+      --accent-hover: #ffa32a;
+      --text: #f1f1f1;
+      --text-secondary: #aaaaaa;
+      --text-muted: #717171;
+      --success: #22c55e;
+      --danger: #ef4444;
+      --font: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 14px;
+      line-height: 1.45;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      min-height: 100vh;
+      background: var(--bg);
+      overflow-x: hidden;
+    }
+
+    button, input, select {
+      font-family: inherit;
+      font-size: inherit;
+      color: inherit;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    /* ======================================================================
+       DOUBLE-ESC STEALTH "CHORES" OVERLAY
+       ====================================================================== */
+    body.stealth-active #appRoot {
+      display: none !important;
+    }
+
+    #choresStealthApp {
+      display: none;
+      min-height: 100vh;
+      background: #f6f7f9;
+      color: #1e293b;
+      padding: 44px 20px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    body.stealth-active #choresStealthApp {
+      display: block;
+    }
+
+    .chores-shell {
+      max-width: 680px;
+      margin: 0 auto;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 28px 30px;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+    }
+
+    .chores-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 16px;
+      margin-bottom: 18px;
+    }
+
+    .chores-top h1 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .chores-progress {
+      font-size: 13px;
+      color: #64748b;
+      font-weight: 500;
+    }
+
+    .chores-add-form {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+
+    .chores-add-form input {
+      flex: 1;
+      border: 1px solid #cbd5e1;
+      background: #f8fafc;
+      color: #0f172a;
+      border-radius: 6px;
+      padding: 9px 12px;
+      font-size: 13.5px;
+      outline: none;
+    }
+
+    .chores-add-form input:focus {
+      border-color: #3b82f6;
+      background: #fff;
+    }
+
+    .chores-add-form button {
+      background: #0f172a;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 0 16px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .chores-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .chore-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      border: 1px solid #e2e8f0;
+      border-radius: 7px;
+      background: #ffffff;
+    }
+
+    .chore-row.done span.chore-txt {
+      text-decoration: line-through;
+      color: #94a3b8;
+    }
+
+    .chore-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+    }
+
+    .chore-left input {
+      width: 16px;
+      height: 16px;
+      accent-color: #2563eb;
+      cursor: pointer;
+    }
+
+    .chore-cat {
+      font-size: 11px;
+      font-weight: 600;
+      color: #475569;
+      background: #f1f5f9;
+      padding: 2px 8px;
+      border-radius: 999px;
+    }
+
+    /* ======================================================================
+       TOP NAVIGATION BAR
+       ====================================================================== */
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      height: 56px;
+      background: #141414;
+      border-bottom: 1px solid var(--border);
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-shrink: 0;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .brand-main {
+      color: #ffffff;
+      padding-right: 3px;
+    }
+
+    .brand-tag {
+      background: var(--accent);
+      color: #000000;
+      padding: 1px 6px;
+      border-radius: 3px;
+      font-weight: 800;
+    }
+
+    /* Country Switcher Pill & Menu */
+    .region-wrap {
+      position: relative;
+      padding-left: 12px;
+      border-left: 1px solid var(--border);
+    }
+
+    .region-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-weight: 500;
+      padding: 4px 8px;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background 0.12s, color 0.12s, border-color 0.12s;
+    }
+
+    .region-btn:hover {
+      background: var(--bg-elevated);
+      border-color: var(--border);
+      color: var(--text);
+    }
+
+    .region-code {
+      background: var(--bg-control);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 3px;
+      letter-spacing: 0.04em;
+    }
+
+    .region-menu {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 12px;
+      width: 220px;
+      max-height: 340px;
+      overflow-y: auto;
+      background: #181818;
+      border: 1px solid #333333;
+      border-radius: 6px;
+      padding: 5px;
+      display: none;
+      flex-direction: column;
+      gap: 1px;
+      z-index: 120;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.72);
+    }
+
+    .region-menu.open {
+      display: flex;
+    }
+
+    .region-opt {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      padding: 6px 9px;
+      border-radius: 4px;
+      font-size: 12.5px;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .region-opt:hover {
+      background: var(--bg-hover);
+      color: var(--text);
+    }
+
+    .region-opt.active {
+      color: var(--accent);
+      font-weight: 700;
+      background: rgba(255, 144, 0, 0.08);
+    }
+
+    /* Search Bar & Live Autocomplete */
+    .topbar-center {
+      flex: 1;
+      max-width: 650px;
+      position: relative;
+    }
+
+    .search-shell {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      background: #0b0b0b;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      transition: border-color 0.15s ease;
+    }
+
+    .search-shell:focus-within {
+      border-color: #555555;
+    }
+
+    .search-mode-select {
+      background: var(--bg-elevated);
+      border: none;
+      border-right: 1px solid var(--border);
+      color: var(--text-secondary);
+      padding: 0 10px;
+      height: 36px;
+      font-size: 12px;
+      font-weight: 500;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .search-shell input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      padding: 0 12px;
+      height: 36px;
+      font-size: 13.5px;
+      color: var(--text);
+      outline: none;
+      min-width: 120px;
+    }
+
+    .search-shell input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .search-clear {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      width: 28px;
+      height: 36px;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .search-clear.visible {
+      display: inline-flex;
+    }
+
+    .search-clear:hover {
+      color: var(--text);
+    }
+
+    .search-btn {
+      background: var(--bg-control);
+      border: none;
+      border-left: 1px solid var(--border);
+      color: var(--text-secondary);
+      width: 42px;
+      height: 36px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .search-btn:hover {
+      background: var(--bg-hover);
+      color: var(--text);
+    }
+
+    /* Autocomplete Dropdown */
+    .ac-dropdown {
+      position: absolute;
+      top: calc(100% + 5px);
+      left: 0;
+      right: 0;
+      background: #171717;
+      border: 1px solid #333333;
+      border-radius: 6px;
+      padding: 5px;
+      display: none;
+      flex-direction: column;
+      gap: 2px;
+      z-index: 130;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.75);
+    }
+
+    .ac-dropdown.open {
+      display: flex;
+    }
+
+    .ac-group-label {
+      font-size: 10.5px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 5px 9px 3px;
+    }
+
+    .ac-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      background: transparent;
+      border: none;
+      color: var(--text);
+      padding: 7px 10px;
+      border-radius: 4px;
+      font-size: 13px;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .ac-row:hover,
+    .ac-row.focused {
+      background: var(--bg-hover);
+    }
+
+    .ac-badge {
+      font-size: 10.5px;
+      color: var(--accent);
+      background: rgba(255, 144, 0, 0.12);
+      border: 1px solid rgba(255, 144, 0, 0.3);
+      padding: 1px 6px;
+      border-radius: 3px;
+      font-weight: 600;
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .ui-select, .ui-btn {
+      height: 34px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 5px;
+      padding: 0 11px;
+      font-size: 12.5px;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      outline: none;
+      transition: background 0.12s, border-color 0.12s;
+      white-space: nowrap;
+    }
+
+    .ui-select:hover, .ui-btn:hover {
+      background: var(--bg-control);
+      border-color: #3a3a3a;
+    }
+
+    .ui-btn.active-tab {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .ui-btn-primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #000000;
+      font-weight: 700;
+    }
+
+    .ui-btn-primary:hover {
+      background: var(--accent-hover);
+      border-color: var(--accent-hover);
+      color: #000000;
+    }
+
+    .dl-nav-badge {
+      background: var(--accent);
+      color: #000;
+      font-size: 10.5px;
+      font-weight: 800;
+      padding: 0 5px;
+      border-radius: 999px;
+      font-variant-numeric: tabular-nums;
+      display: none;
+    }
+
+    .dl-nav-badge.visible {
+      display: inline-block;
+    }
+
+    /* Page Container */
+    .page-wrap {
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 20px 24px 56px;
+    }
+
+    .offline-alert {
+      display: none;
+      background: #1b1313;
+      border: 1px solid #522222;
+      border-radius: 6px;
+      padding: 16px 18px;
+      margin-bottom: 20px;
+    }
+
+    .offline-alert.visible {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .offline-alert code {
+      background: #0c0c0c;
+      border: 1px solid var(--border);
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+      color: var(--accent);
+    }
+
+    /* Performer Profile Banner */
+    .performer-banner {
+      display: none;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 16px 20px;
+      margin-bottom: 18px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .performer-banner.visible {
+      display: flex;
+    }
+
+    .perf-info {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .perf-title-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .perf-title-row h1 {
+      font-size: 20px;
+      font-weight: 800;
+    }
+
+    .perf-kind-badge {
+      background: rgba(255, 144, 0, 0.14);
+      border: 1px solid rgba(255, 144, 0, 0.35);
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .perf-stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      color: var(--text-secondary);
+      font-size: 12.5px;
+    }
+
+    /* Browse Toolbar */
+    .browse-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .browse-title-group {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .browse-title-group h1 {
+      font-size: 19px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .browse-count {
+      color: var(--text-muted);
+      font-size: 12.5px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .filter-strip {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+      padding: 8px 12px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      font-size: 12.5px;
+      color: var(--text-secondary);
+    }
+
+    .filter-strip.visible {
+      display: flex;
+    }
+
+    /* Video Grid */
+    .video-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(295px, 1fr));
+      column-gap: 16px;
+      row-gap: 26px;
+    }
+
+    .vcard {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .vcard-thumb {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: #161616;
+      border-radius: 6px;
+      overflow: hidden;
+      cursor: pointer;
+      display: block;
+    }
+
+    .vcard-thumb img,
+    .vcard-thumb video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .vcard-thumb video {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.18s ease;
+    }
+
+    .vcard-thumb.playing video {
+      opacity: 1;
+    }
+
+    .vcard-duration {
+      position: absolute;
+      right: 6px;
+      bottom: 6px;
+      background: rgba(0, 0, 0, 0.84);
+      color: #ffffff;
+      font-size: 11.5px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      padding: 1px 5px;
+      border-radius: 3px;
+      z-index: 2;
+    }
+
+    .vcard-rank {
+      position: absolute;
+      left: 6px;
+      top: 6px;
+      background: rgba(0, 0, 0, 0.78);
+      color: #d4d4d4;
+      font-size: 11px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      padding: 1px 5px;
+      border-radius: 3px;
+      z-index: 2;
+    }
+
+    .vcard-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .vcard-title {
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 1.35;
+      color: var(--text);
+      cursor: pointer;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .vcard-title:hover {
+      color: var(--accent);
+    }
+
+    .vcard-subrow {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .vcard-creator {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--text-secondary);
+      background: transparent;
+      border: none;
+      padding: 0;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .vcard-creator:hover {
+      color: var(--text);
+      text-decoration: underline;
+    }
+
+    .vcard-stats {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      flex-shrink: 0;
+      color: var(--text-muted);
+    }
+
+    .stat-inline {
+      display: inline-flex;
+      align-items: center;
+      gap: 3.5px;
+    }
+
+    .vcard-meta-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 2px;
+    }
+
+    .meta-pill {
+      background: #1a1a1a;
+      border: 1px solid #262626;
+      color: var(--text-secondary);
+      font-size: 11px;
+      padding: 1px 6px;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: color 0.12s, border-color 0.12s;
+      max-width: 150px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .meta-pill:hover {
+      color: var(--text);
+      border-color: #444444;
+    }
+
+    .meta-pill.star {
+      color: #d8d8d8;
+      background: #202020;
+      border-color: #303030;
+    }
+
+    .meta-pill.star:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .meta-pill-more {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-muted);
+      font-size: 11px;
+      padding: 1px 4px;
+      cursor: pointer;
+    }
+
+    .meta-pill-more:hover {
+      color: var(--text);
+    }
+
+    .pagination {
+      margin-top: 32px;
+      padding-top: 18px;
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .page-num {
+      color: var(--text-secondary);
+      font-size: 12.5px;
+      font-variant-numeric: tabular-nums;
+      padding: 0 8px;
+    }
+
+    .skeleton-item {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .skeleton-box {
+      background: #191919;
+      border-radius: 6px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .skeleton-box::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent);
+      transform: translateX(-100%);
+      animation: skel 1.3s infinite;
+    }
+
+    @keyframes skel {
+      100% { transform: translateX(100%); }
+    }
+
+    /* ======================================================================
+       DOWNLOADS & OFFLINE LIBRARY VIEW
+       ====================================================================== */
+    #downloadsView {
+      display: none;
+    }
+
+    .dl-jobs-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+
+    .dl-job-card {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .dl-job-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .dl-job-title {
+      font-weight: 600;
+      font-size: 13.5px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .dl-job-stats {
+      font-size: 12px;
+      color: var(--text-secondary);
+      font-variant-numeric: tabular-nums;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .dl-bar-track {
+      width: 100%;
+      height: 5px;
+      background: #262626;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .dl-bar-fill {
+      height: 100%;
+      background: var(--accent);
+      transition: width 0.25s ease;
+    }
+
+    /* ======================================================================
+       WATCH VIEW & CUSTOM PLAYER
+       ====================================================================== */
+    #watchView {
+      display: none;
+    }
+
+    .watch-nav-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      gap: 12px;
+    }
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      padding: 4px 0;
+    }
+
+    .back-link:hover {
+      color: var(--text);
+    }
+
+    .watch-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 370px;
+      gap: 24px;
+      align-items: start;
+    }
+
+    .watch-layout.theater {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .watch-layout.theater .player-stage {
+      max-height: 82vh;
+    }
+
+    .watch-main {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .player-stage {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: #000000;
+      border-radius: 6px;
+      overflow: hidden;
+      user-select: none;
+      outline: none;
+    }
+
+    .player-stage:fullscreen,
+    .player-stage:-webkit-full-screen {
+      border-radius: 0;
+      max-height: none;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    .player-stage.hide-cursor {
+      cursor: none;
+    }
+
+    #mainVideo {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: contain;
+      background: #000;
+    }
+
+    #embedFallbackFrame {
+      display: none;
+      width: 100%;
+      height: 100%;
+      border: 0;
+    }
+
+    .player-spinner {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 44px;
+      height: 44px;
+      margin: -22px 0 0 -22px;
+      border: 3px solid rgba(255, 255, 255, 0.2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+      pointer-events: none;
+      display: none;
+      z-index: 12;
+    }
+
+    .player-stage.buffering .player-spinner {
+      display: block;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .player-bezel {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.85);
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.68);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 13;
+    }
+
+    .player-bezel.animate {
+      animation: bezelPop 0.42s ease-out forwards;
+    }
+
+    @keyframes bezelPop {
+      0% { opacity: 0.95; transform: translate(-50%, -50%) scale(0.85); }
+      100% { opacity: 0; transform: translate(-50%, -50%) scale(1.25); }
+    }
+
+    .player-toast {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      background: rgba(15, 15, 15, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #fff;
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 500;
+      opacity: 0;
+      transition: opacity 0.18s ease;
+      pointer-events: none;
+      z-index: 15;
+    }
+
+    .player-toast.visible {
+      opacity: 1;
+    }
+
+    .speed-hold-pill {
+      position: absolute;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(12, 12, 12, 0.88);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      color: #ffffff;
+      padding: 5px 13px;
+      border-radius: 999px;
+      font-size: 12.5px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.14s ease;
+      z-index: 18;
+    }
+
+    .speed-hold-pill.visible {
+      opacity: 1;
+    }
+
+    .player-chrome {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      padding: 28px 14px 10px;
+      background: linear-gradient(to top, rgba(0, 0, 0, 0.88) 0%, rgba(0, 0, 0, 0.45) 55%, transparent 100%);
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      z-index: 20;
+    }
+
+    .player-stage:hover .player-chrome,
+    .player-stage.paused .player-chrome,
+    .player-stage.menu-open .player-chrome {
+      opacity: 1;
+    }
+
+    .player-stage.hide-cursor .player-chrome {
+      opacity: 0;
+    }
+
+    /* Subtitles overlay (Pornhub CC + local Whisper AI) */
+    .sub-overlay {
+      position: absolute;
+      left: 6%;
+      right: 6%;
+      bottom: 76px;
+      z-index: 15;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      pointer-events: none;
+      transition: bottom 0.2s ease;
+    }
+
+    .player-stage.hide-cursor .sub-overlay,
+    .player-stage:not(:hover):not(.paused):not(.menu-open) .sub-overlay {
+      bottom: 26px;
+    }
+
+    .sub-text {
+      display: none;
+      max-width: 100%;
+      padding: 4px 12px;
+      border-radius: 4px;
+      background: rgba(0, 0, 0, 0.72);
+      color: #ffffff;
+      font-size: clamp(14px, 2.1vw, 26px);
+      font-weight: 600;
+      line-height: 1.35;
+      text-align: center;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+      white-space: pre-line;
+    }
+
+    .player-stage:fullscreen .sub-text {
+      font-size: clamp(20px, 2.6vw, 38px);
+    }
+
+    .sub-text.visible {
+      display: inline-block;
+    }
+
+    .sub-status {
+      display: none;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: rgba(0, 0, 0, 0.6);
+      color: #d0d0d0;
+      font-size: 11.5px;
+      font-weight: 600;
+    }
+
+    .sub-status.visible {
+      display: inline-flex;
+    }
+
+    .sub-status .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: subPulse 1s ease-in-out infinite;
+    }
+
+    @keyframes subPulse {
+      0%, 100% { opacity: 0.25; }
+      50% { opacity: 1; }
+    }
+
+    .cc-pill {
+      font-size: 10.5px;
+      font-weight: 800;
+      padding: 1px 5px;
+      border-radius: 3px;
+      border: 1.5px solid currentColor;
+      letter-spacing: 0.03em;
+    }
+
+    .pbtn.active .cc-pill {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #000;
+    }
+
+    .s-opt:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    /* Timeline Scrubber + Heatmap + Scene Tick Markers */
+    .scrub-container {
+      position: relative;
+      height: 18px;
+      display: flex;
+      align-items: flex-end;
+      padding-bottom: 5px;
+      cursor: pointer;
+      margin-bottom: 6px;
+    }
+
+    .heatmap-svg {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 9px;
+      width: 100%;
+      height: 22px;
+      opacity: 0;
+      transition: opacity 0.18s ease;
+      pointer-events: none;
+    }
+
+    .scrub-container:hover .heatmap-svg {
+      opacity: 0.72;
+    }
+
+    .scrub-track {
+      position: relative;
+      width: 100%;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.22);
+      border-radius: 2px;
+      transition: height 0.12s ease;
+    }
+
+    .scrub-container:hover .scrub-track {
+      height: 6px;
+    }
+
+    .scrub-buffered {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 0%;
+      background: rgba(255, 255, 255, 0.35);
+      border-radius: 2px;
+      pointer-events: none;
+    }
+
+    .scrub-ab-range {
+      position: absolute;
+      top: -1px;
+      bottom: -1px;
+      background: rgba(59, 130, 246, 0.55);
+      border-left: 2px solid #60a5fa;
+      border-right: 2px solid #60a5fa;
+      display: none;
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    .scrub-played {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 0%;
+      background: var(--accent);
+      border-radius: 2px;
+      pointer-events: none;
+    }
+
+    .scrub-markers {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 3;
+    }
+
+    .scrub-tick {
+      position: absolute;
+      top: -1px;
+      bottom: -1px;
+      width: 2px;
+      background: #ffffff;
+      box-shadow: 0 0 2px rgba(0, 0, 0, 0.9);
+      transform: translateX(-50%);
+    }
+
+    .scrub-thumb {
+      position: absolute;
+      top: 50%;
+      left: 0%;
+      width: 13px;
+      height: 13px;
+      background: var(--accent);
+      border-radius: 50%;
+      transform: translate(-50%, -50%) scale(0);
+      transition: transform 0.12s ease;
+      pointer-events: none;
+      z-index: 4;
+    }
+
+    .scrub-container:hover .scrub-thumb {
+      transform: translate(-50%, -50%) scale(1);
+    }
+
+    .scrub-tooltip {
+      position: absolute;
+      bottom: 26px;
+      left: 0;
+      transform: translateX(-50%);
+      background: #111111;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 4px;
+      padding: 3px;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      pointer-events: none;
+      z-index: 25;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.65);
+    }
+
+    .scrub-container:hover .scrub-tooltip {
+      display: flex;
+    }
+
+    #scrubCanvas {
+      width: 160px;
+      height: 90px;
+      background: #080808;
+      border-radius: 2px;
+      display: none;
+    }
+
+    .scrub-chapter-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--accent);
+      max-width: 156px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      display: none;
+    }
+
+    .scrub-time-label {
+      font-size: 11.5px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      color: #fff;
+      padding: 1px 5px;
+    }
+
+    /* Controls Bar */
+    .controls-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .ctrl-group {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .pbtn {
+      background: transparent;
+      border: none;
+      color: #e5e5e5;
+      height: 32px;
+      min-width: 32px;
+      padding: 0 6px;
+      border-radius: 4px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      transition: background 0.12s, color 0.12s;
+    }
+
+    .pbtn:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: #ffffff;
+    }
+
+    .pbtn.active {
+      color: var(--accent);
+    }
+
+    .volume-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .vol-slider {
+      width: 0;
+      opacity: 0;
+      accent-color: var(--accent);
+      cursor: pointer;
+      transition: width 0.18s ease, opacity 0.18s ease;
+      height: 4px;
+    }
+
+    .volume-wrap:hover .vol-slider,
+    .vol-slider:focus {
+      width: 68px;
+      opacity: 1;
+    }
+
+    .time-readout {
+      font-size: 12px;
+      color: #dcdcdc;
+      font-variant-numeric: tabular-nums;
+      padding: 0 8px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .quality-pill {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 3px;
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .settings-menu {
+      position: absolute;
+      right: 14px;
+      bottom: 54px;
+      width: 235px;
+      background: rgba(20, 20, 20, 0.96);
+      backdrop-filter: blur(10px);
+      border: 1px solid #333333;
+      border-radius: 6px;
+      padding: 10px;
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 30;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.7);
+    }
+
+    .settings-menu.open {
+      display: flex;
+    }
+
+    .settings-section-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 4px;
+    }
+
+    .settings-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    .s-opt {
+      background: #262626;
+      border: 1px solid #333;
+      color: #d4d4d4;
+      font-size: 11.5px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .s-opt:hover {
+      background: #303030;
+      color: #fff;
+    }
+
+    .s-opt.selected {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #000;
+      font-weight: 700;
+    }
+
+    .shortcuts-modal {
+      position: absolute;
+      inset: 0;
+      background: rgba(10, 10, 10, 0.9);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 35;
+      padding: 20px;
+    }
+
+    .shortcuts-modal.open {
+      display: flex;
+    }
+
+    .shortcuts-card {
+      background: #181818;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 16px 20px;
+      max-width: 450px;
+      width: 100%;
+    }
+
+    .shortcuts-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px 16px;
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .shortcuts-grid kbd {
+      background: #262626;
+      border: 1px solid #383838;
+      color: #fff;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-family: monospace;
+      font-size: 11px;
+      margin-right: 4px;
+    }
+
+    /* Jump to Scene / Action Tags Bar under Player */
+    .scenes-strip {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 9px 14px;
+    }
+
+    .scenes-strip.visible {
+      display: flex;
+    }
+
+    .scenes-label {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: var(--text-muted);
+      margin-right: 4px;
+    }
+
+    .scene-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--bg-control);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 12px;
+      padding: 3px 9px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: border-color 0.12s, color 0.12s;
+    }
+
+    .scene-pill:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .scene-time {
+      color: var(--accent);
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      font-size: 11.5px;
+    }
+
+    /* Under-Player Info Panel */
+    .watch-info-panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 16px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .watch-title {
+      font-size: 19px;
+      font-weight: 700;
+      line-height: 1.35;
+      color: #ffffff;
+    }
+
+    .watch-primary-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .watch-views-meta {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .watch-actions {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .vote-box {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      background: var(--bg-control);
+      border: 1px solid var(--border);
+      padding: 5px 12px;
+      border-radius: 5px;
+    }
+
+    .vote-counts {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 12.5px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .vote-up {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      color: #e5e5e5;
+    }
+
+    .vote-down {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      color: var(--text-muted);
+    }
+
+    .vote-pct {
+      color: var(--accent);
+      font-size: 12px;
+    }
+
+    .vote-ratio-track {
+      width: 100%;
+      height: 3px;
+      background: #383838;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .vote-ratio-fill {
+      height: 100%;
+      background: var(--accent);
+      width: 0%;
+    }
+
+    /* Split Turbo Download Button & Quality Picker */
+    .dl-split {
+      position: relative;
+      display: none;
+      align-items: stretch;
+    }
+
+    .dl-split.visible {
+      display: inline-flex;
+    }
+
+    .dl-main-btn {
+      border-top-right-radius: 0;
+      border-bottom-right-radius: 0;
+      border-right: none;
+    }
+
+    .dl-caret-btn {
+      border-top-left-radius: 0;
+      border-bottom-left-radius: 0;
+      padding: 0 8px;
+      border-left: 1px solid var(--border);
+    }
+
+    .dl-menu {
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      min-width: 245px;
+      background: #181818;
+      border: 1px solid #333333;
+      border-radius: 6px;
+      padding: 5px;
+      display: none;
+      flex-direction: column;
+      gap: 2px;
+      z-index: 60;
+      box-shadow: 0 10px 26px rgba(0, 0, 0, 0.72);
+    }
+
+    .dl-menu.open {
+      display: flex;
+    }
+
+    .dl-menu-header {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      padding: 4px 8px 5px;
+      border-bottom: 1px solid var(--border-subtle);
+      margin-bottom: 2px;
+    }
+
+    .dl-item-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      padding: 4px 6px;
+      border-radius: 4px;
+    }
+
+    .dl-item-row:hover {
+      background: var(--bg-hover);
+    }
+
+    .dl-turbo-trigger {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      background: transparent;
+      border: none;
+      color: var(--text);
+      font-size: 12.5px;
+      padding: 3px 4px;
+      cursor: pointer;
+      font-variant-numeric: tabular-nums;
+      text-align: left;
+    }
+
+    .dl-item-row.selected .dl-item-q {
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .dl-item-size {
+      font-size: 11.5px;
+      color: var(--text-muted);
+    }
+
+    .dl-browser-link {
+      color: var(--text-muted);
+      padding: 4px 5px;
+      border-radius: 3px;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .dl-browser-link:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .watch-meta-rows {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .watch-meta-row {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      font-size: 12.5px;
+    }
+
+    .watch-meta-key {
+      width: 82px;
+      flex-shrink: 0;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .watch-meta-val {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .watch-chip {
+      background: var(--bg-control);
+      border: 1px solid var(--border);
+      color: #d4d4d4;
+      padding: 3px 9px;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: border-color 0.12s, color 0.12s;
+    }
+
+    .watch-chip:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .watch-chip.star-chip {
+      color: #ffffff;
+      font-weight: 500;
+    }
+
+    .below-section {
+      margin-top: 8px;
+      padding-top: 18px;
+      border-top: 1px solid var(--border);
+    }
+
+    .section-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .section-bar h2 {
+      font-size: 16px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .count-badge {
+      color: var(--text-muted);
+      font-weight: 500;
+      font-size: 13px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .related-below-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(235px, 1fr));
+      gap: 14px 14px;
+    }
+
+    /* Comments */
+    .comments-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .comment-item {
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .comment-item.is-reply {
+      margin-left: 28px;
+      padding-left: 12px;
+      border-left: 2px solid var(--border);
+    }
+
+    .comment-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12.5px;
+    }
+
+    .comment-author {
+      font-weight: 600;
+      color: #e2e2e2;
+    }
+
+    .comment-reply-tag {
+      font-size: 10.5px;
+      color: var(--text-muted);
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      padding: 0 5px;
+      border-radius: 3px;
+    }
+
+    .comment-date {
+      color: var(--text-muted);
+      font-size: 11.5px;
+    }
+
+    .comment-body {
+      color: #cccccc;
+      font-size: 13.5px;
+      line-height: 1.48;
+      white-space: pre-line;
+      word-break: break-word;
+    }
+
+    .ts-link {
+      color: var(--accent);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-variant-numeric: tabular-nums;
+      font-weight: 500;
+    }
+
+    .ts-link:hover {
+      text-decoration: underline;
+    }
+
+    .comment-votes {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 11.5px;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+      margin-top: 2px;
+    }
+
+    .cvote {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .cvote.has-up {
+      color: var(--text-secondary);
+    }
+
+    /* Right Sidebar */
+    .watch-sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .watch-layout.theater .watch-sidebar {
+      display: none;
+    }
+
+    .sidebar-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sidebar-header h3 {
+      font-size: 14.5px;
+      font-weight: 700;
+    }
+
+    .toggle-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .toggle-label input {
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .side-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .side-card {
+      display: grid;
+      grid-template-columns: 160px minmax(0, 1fr);
+      gap: 10px;
+      cursor: pointer;
+      align-items: start;
+    }
+
+    .side-card:hover .side-title {
+      color: var(--accent);
+    }
+
+    .side-thumb {
+      position: relative;
+      width: 160px;
+      aspect-ratio: 16 / 9;
+      background: #161616;
+      border-radius: 5px;
+      overflow: hidden;
+    }
+
+    .side-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .side-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      min-width: 0;
+    }
+
+    .side-title {
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1.32;
+      color: var(--text);
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .side-sub {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .empty-box {
+      padding: 48px 20px;
+      text-align: center;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg-elevated);
+      grid-column: 1 / -1;
+    }
+
+    .empty-box h3 {
+      font-size: 15px;
+      margin-bottom: 6px;
+    }
+
+    .empty-box p {
+      color: var(--text-secondary);
+      font-size: 13px;
+      margin-bottom: 14px;
+    }
+
+    @media (max-width: 1120px) {
+      .watch-layout {
+        grid-template-columns: minmax(0, 1fr);
+      }
+      .watch-sidebar {
+        display: none;
+      }
+    }
+
+    @media (max-width: 780px) {
+      .topbar {
+        height: auto;
+        padding: 10px 14px;
+        flex-wrap: wrap;
+      }
+      .topbar-center {
+        order: 3;
+        max-width: none;
+        width: 100%;
+      }
+      .page-wrap {
+        padding: 14px 14px 40px;
+      }
+      .video-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ==================== DOUBLE-ESC STEALTH CHORES VIEW ==================== -->
+  <div id="choresStealthApp">
+    <div class="chores-shell">
+      <div class="chores-top">
+        <h1>Household Chores &amp; Weekly Tasks</h1>
+        <span class="chores-progress" id="choresProgressText">2 of 6 completed</span>
+      </div>
+      <form class="chores-add-form" id="choresAddForm">
+        <input type="text" id="choreNewInput" placeholder="Add a household task..." autocomplete="off" />
+        <button type="submit">Add Task</button>
+      </form>
+      <ul class="chores-list" id="choresList"></ul>
+    </div>
+  </div>
+
+  <!-- ==================== MAIN APPLICATION ROOT ==================== -->
+  <div id="appRoot">
+    <header class="topbar">
+      <div class="topbar-left">
+        <div class="brand" id="brandHome" title="Return to Hottest feed">
+          <span class="brand-main">PH</span>
+          <span class="brand-tag">Explorer</span>
+        </div>
+
+        <div class="region-wrap" id="regionWrap">
+          <button type="button" class="region-btn" id="regionBtn" title="Switch Hottest country">
+            <span id="regionText">Locating IP...</span>
+            <span class="region-code" id="regionCode" style="display:none"></span>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+          <div class="region-menu" id="regionMenu"></div>
+        </div>
+      </div>
+
+      <form class="topbar-center" id="searchForm">
+        <div class="search-shell">
+          <select class="search-mode-select" id="searchModeSelect" title="Instant feed filter vs full Pornhub search">
+            <option value="filter">Filter Feed</option>
+            <option value="global">Search PH</option>
+          </select>
+          <input
+            type="text"
+            id="searchInput"
+            placeholder="Filter Hottest by title, performer, or tag..."
+            autocomplete="off"
+          />
+          <button type="button" class="search-clear" id="searchClearBtn" title="Clear">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+          </button>
+          <button type="submit" class="search-btn" title="Search">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>
+            </svg>
+          </button>
+        </div>
+        <div class="ac-dropdown" id="acDropdown"></div>
+      </form>
+
+      <div class="topbar-right">
+        <select class="ui-select" id="sortSelect" title="Sort loaded cards">
+          <option value="rank">Order: Default</option>
+          <option value="likes">Most Liked</option>
+          <option value="rating">Top Rated %</option>
+          <option value="views">Most Viewed</option>
+          <option value="longest">Longest</option>
+          <option value="shortest">Shortest</option>
+        </select>
+
+        <select class="ui-select" id="globalOrderSelect" style="display:none" title="Pornhub search sort">
+          <option value="relevant">PH: Most Relevant</option>
+          <option value="mostviewed">PH: Most Viewed</option>
+          <option value="rating">PH: Top Rated</option>
+          <option value="newest">PH: Most Recent</option>
+          <option value="longest">PH: Longest</option>
+        </select>
+
+        <select class="ui-select" id="performerOrderSelect" style="display:none" title="Performer videos sort">
+          <option value="newest">Profile: Newest</option>
+          <option value="mostviewed">Profile: Most Viewed</option>
+          <option value="rating">Profile: Top Rated</option>
+          <option value="longest">Profile: Longest</option>
+        </select>
+
+        <button type="button" class="ui-btn" id="downloadsNavBtn" title="Turbo Downloads & Offline Library">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          <span>Downloads</span>
+          <span class="dl-nav-badge" id="dlNavBadge">0</span>
+        </button>
+
+        <button type="button" class="ui-btn" id="refreshBtn" title="Reload">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="page-wrap">
+      <div class="offline-alert" id="offlineAlert">
+        <div>
+          <strong style="color:#fca5a5; display:block; margin-bottom:3px;">Local stream &amp; API server is offline</strong>
+          <span style="color:var(--text-secondary); font-size:12.5px;">
+            Run <code>start_server.bat</code> (or <code>python server.py</code>) inside your <code>Chores</code> folder to enable live fetching and HD streaming.
+          </span>
+        </div>
+        <button type="button" class="ui-btn ui-btn-primary" id="retryConnBtn">Reconnect</button>
+      </div>
+
+      <!-- ======================= BROWSE & PERFORMER VIEW ======================= -->
+      <section id="browseView">
+        <div class="performer-banner" id="performerBanner">
+          <div class="perf-info">
+            <div class="perf-title-row">
+              <h1 id="perfNameHeading">Performer</h1>
+              <span class="perf-kind-badge" id="perfKindBadge">Pornstar</span>
+            </div>
+            <div class="perf-stats" id="perfStatsRow"></div>
+          </div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <button type="button" class="ui-btn" id="perfExitBtn">&larr; Hottest Feed</button>
+            <a id="perfPhLink" href="https://www.pornhub.com" target="_blank" rel="noopener noreferrer" class="ui-btn ui-btn-primary">
+              <span>View on PH</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+                <path d="M7 17L17 7M9 7h8v8"/>
+              </svg>
+            </a>
+          </div>
+        </div>
+
+        <div class="browse-header" id="browseHeaderBar">
+          <div class="browse-title-group">
+            <h1 id="browseHeading">Hottest Videos</h1>
+            <span class="browse-count" id="browseStats">Loading...</span>
+          </div>
+        </div>
+
+        <div class="filter-strip" id="filterStrip">
+          <span id="filterStripText"></span>
+          <button type="button" class="ui-btn" id="clearFilterBtn" style="height:26px; padding:0 9px; font-size:11.5px;">Clear</button>
+          <button type="button" class="ui-btn ui-btn-primary" id="escalateSearchBtn" style="height:26px; padding:0 9px; font-size:11.5px;">
+            Search all Pornhub
+          </button>
+        </div>
+
+        <div class="video-grid" id="browseGrid"></div>
+
+        <div class="pagination" id="paginationBar" style="display:none">
+          <button type="button" class="ui-btn" id="prevPageBtn">Previous</button>
+          <span class="page-num" id="pageIndicator">Page 1</span>
+          <button type="button" class="ui-btn" id="nextPageBtn">Next</button>
+        </div>
+      </section>
+
+      <!-- ======================= DOWNLOADS & OFFLINE LIBRARY ======================= -->
+      <section id="downloadsView">
+        <div class="browse-header">
+          <div class="browse-title-group">
+            <h1>Turbo Downloads &amp; Offline Library</h1>
+            <span class="browse-count" id="dlFolderLabel">Saved in Chores/Downloads</span>
+          </div>
+          <button type="button" class="ui-btn" id="dlBackBtn">&larr; Back to Browse</button>
+        </div>
+
+        <div class="dl-jobs-panel" id="dlJobsPanel" style="display:none"></div>
+
+        <div class="video-grid" id="dlFilesGrid"></div>
+      </section>
+
+      <!-- ======================= WATCH VIEW ======================= -->
+      <section id="watchView">
+        <div class="watch-nav-row">
+          <button type="button" class="back-link" id="backToBrowseBtn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+            <span id="backToBrowseLabel">Back to Browse</span>
+          </button>
+
+          <div style="display:flex; align-items:center; gap:8px;">
+            <button type="button" class="ui-btn" id="toggleEmbedModeBtn" title="Switch between Custom Player and Official Pornhub Embed">
+              Use Embed Player
+            </button>
+            <a
+              id="topWatchPhBtn"
+              href="https://www.pornhub.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="ui-btn ui-btn-primary"
+            >
+              <span>Watch on PH</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+                <path d="M7 17L17 7M9 7h8v8"/>
+              </svg>
+            </a>
+          </div>
+        </div>
+
+        <div class="watch-layout" id="watchLayout">
+          <div class="watch-main">
+            <!-- Custom Player -->
+            <div class="player-stage paused" id="playerStage" tabindex="0">
+              <video id="mainVideo" playsinline preload="metadata"></video>
+              <iframe id="embedFallbackFrame" allowfullscreen allow="autoplay; fullscreen"></iframe>
+              <video id="scrubPreviewVideo" muted playsinline preload="metadata" style="display:none"></video>
+
+              <div class="player-spinner"></div>
+              <div class="player-bezel" id="playerBezel"></div>
+              <div class="player-toast" id="playerToast"></div>
+              <div class="speed-hold-pill" id="speedHoldPill">
+                <span>2x</span>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                  <polygon points="4 5 13 12 4 19 4 5"/><polygon points="13 5 22 12 13 19 13 5"/>
+                </svg>
+              </div>
+
+              <!-- Subtitles Overlay -->
+              <div class="sub-overlay" id="subOverlay">
+                <div class="sub-status" id="subStatus"><span class="dot"></span><span id="subStatusText"></span></div>
+                <div class="sub-text" id="subText"></div>
+              </div>
+
+              <!-- Settings Menu -->
+              <div class="settings-menu" id="settingsMenu">
+                <div>
+                  <div class="settings-section-label">Quality</div>
+                  <div class="settings-options" id="qualityOptions"></div>
+                </div>
+                <div>
+                  <div class="settings-section-label">Playback Speed</div>
+                  <div class="settings-options" id="speedOptions"></div>
+                </div>
+                <div>
+                  <div class="settings-section-label">Subtitles</div>
+                  <div class="settings-options" id="subOptions"></div>
+                </div>
+                <div id="engineSectionWrap">
+                  <div class="settings-section-label">Stream Engine</div>
+                  <div class="settings-options" id="engineOptions"></div>
+                </div>
+              </div>
+
+              <!-- Shortcuts Modal -->
+              <div class="shortcuts-modal" id="shortcutsModal">
+                <div class="shortcuts-card">
+                  <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <strong style="font-size:13.5px;">Keyboard Shortcuts</strong>
+                    <button type="button" class="pbtn" id="closeShortcutsBtn">&times;</button>
+                  </div>
+                  <div class="shortcuts-grid">
+                    <div><kbd>Space</kbd> / <kbd>K</kbd> Play / Pause</div>
+                    <div><kbd>Hold Space</kbd> 2x Speed</div>
+                    <div><kbd>J</kbd> / <kbd>L</kbd> Seek -10s / +10s</div>
+                    <div><kbd>Esc &times;2</kbd> Chores Stealth</div>
+                    <div><kbd>&larr;</kbd> / <kbd>&rarr;</kbd> Seek -5s / +5s</div>
+                    <div><kbd>F</kbd> / <kbd>T</kbd> Fullscreen / Theater</div>
+                    <div><kbd>&uarr;</kbd> / <kbd>&darr;</kbd> Volume +/-</div>
+                    <div><kbd>P</kbd> / <kbd>M</kbd> PiP / Mute</div>
+                    <div><kbd>,</kbd> / <kbd>.</kbd> Frame Step</div>
+                    <div><kbd>0</kbd>-<kbd>9</kbd> Jump 0%-90%</div>
+                    <div><kbd>C</kbd> Subtitles On / Off</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Bottom Chrome -->
+              <div class="player-chrome" id="playerChrome">
+                <div class="scrub-container" id="scrubContainer">
+                  <svg class="heatmap-svg" id="heatmapSvg" preserveAspectRatio="none" viewBox="0 0 1000 100"></svg>
+                  <div class="scrub-tooltip" id="scrubTooltip">
+                    <canvas id="scrubCanvas" width="160" height="90"></canvas>
+                    <span class="scrub-chapter-label" id="scrubChapterLabel"></span>
+                    <span class="scrub-time-label" id="scrubTimeLabel">0:00</span>
+                  </div>
+                  <div class="scrub-track" id="scrubTrack">
+                    <div class="scrub-buffered" id="scrubBuffered"></div>
+                    <div class="scrub-ab-range" id="scrubAbRange"></div>
+                    <div class="scrub-played" id="scrubPlayed"></div>
+                    <div class="scrub-markers" id="scrubMarkers"></div>
+                    <div class="scrub-thumb" id="scrubThumb"></div>
+                  </div>
+                </div>
+
+                <div class="controls-bar">
+                  <div class="ctrl-group">
+                    <button type="button" class="pbtn" id="playPauseBtn" title="Play / Pause (Space)">
+                      <svg id="iconPlay" width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
+                        <polygon points="6 4 20 12 6 20 6 4"/>
+                      </svg>
+                      <svg id="iconPause" width="17" height="17" viewBox="0 0 24 24" fill="currentColor" style="display:none">
+                        <rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>
+                      </svg>
+                    </button>
+
+                    <button type="button" class="pbtn" id="seekBackBtn" title="Rewind 10s (J)">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 17l-5-5 5-5M18 17l-5-5 5-5"/>
+                      </svg>
+                    </button>
+
+                    <button type="button" class="pbtn" id="seekFwdBtn" title="Forward 10s (L)">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M13 17l5-5-5-5M6 17l5-5-5-5"/>
+                      </svg>
+                    </button>
+
+                    <button type="button" class="pbtn" id="nextVidBtn" title="Play Next Related Video">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <polygon points="5 4 15 12 5 20 5 4"/><rect x="17" y="5" width="2.5" height="14"/>
+                      </svg>
+                    </button>
+
+                    <div class="volume-wrap">
+                      <button type="button" class="pbtn" id="muteBtn" title="Mute / Unmute (M)">
+                        <svg id="iconVolHigh" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                          <path d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14"/>
+                        </svg>
+                        <svg id="iconVolMuted" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none">
+                          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                          <line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/>
+                        </svg>
+                      </button>
+                      <input type="range" class="vol-slider" id="volSlider" min="0" max="1" step="0.02" value="1" />
+                    </div>
+
+                    <span class="time-readout" id="timeReadout" title="Click to toggle remaining time">0:00 / 0:00</span>
+                  </div>
+
+                  <div class="ctrl-group">
+                    <button type="button" class="pbtn" id="abLoopBtn" title="Set A-B Repeat Segment">A-B</button>
+
+                    <button type="button" class="pbtn" id="loopToggleBtn" title="Loop Video">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+                        <polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+                      </svg>
+                    </button>
+
+                    <button type="button" class="pbtn" id="screenshotBtn" title="Capture Frame Screenshot">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                        <circle cx="12" cy="13" r="4"/>
+                      </svg>
+                    </button>
+
+                    <button type="button" class="pbtn" id="ccBtn" title="Subtitles (C)">
+                      <span class="cc-pill">CC</span>
+                    </button>
+
+                    <button type="button" class="pbtn" id="settingsBtn" title="Quality & Speed Settings">
+                      <span class="quality-pill" id="activeQualityBadge">HD</span>
+                    </button>
+
+                    <button type="button" class="pbtn" id="pipBtn" title="Picture-in-Picture (P)">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="2" y="3" width="20" height="14" rx="2"/><rect x="12" y="10" width="8" height="6" rx="1"/>
+                      </svg>
+                    </button>
+
+                    <button type="button" class="pbtn" id="theaterBtn" title="Theater Mode (T)">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="2" y="5" width="20" height="14" rx="2"/>
+                      </svg>
+                    </button>
+
+                    <button type="button" class="pbtn" id="helpBtn" title="Keyboard Shortcuts (?)">?</button>
+
+                    <button type="button" class="pbtn" id="fullscreenBtn" title="Fullscreen (F)">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Jump to Scene / Replay Highlights Strip -->
+            <div class="scenes-strip" id="scenesStrip"></div>
+
+            <!-- Under-Player Info Panel -->
+            <div class="watch-info-panel">
+              <h1 class="watch-title" id="watchTitle">Loading...</h1>
+
+              <div class="watch-primary-bar">
+                <div class="watch-views-meta" id="watchSubMeta"></div>
+
+                <div class="watch-actions">
+                  <div class="vote-box" id="watchVoteBox" title="Approval rating & vote breakdown">
+                    <div class="vote-counts">
+                      <span class="vote-up">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>
+                        </svg>
+                        <span id="watchLikes">0</span>
+                      </span>
+                      <span class="vote-down">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/>
+                        </svg>
+                        <span id="watchDislikes">0</span>
+                      </span>
+                      <span class="vote-pct" id="watchRatingPct">0%</span>
+                    </div>
+                    <div class="vote-ratio-track">
+                      <div class="vote-ratio-fill" id="watchRatioFill"></div>
+                    </div>
+                  </div>
+
+                  <!-- Split Turbo Download + Quality Picker -->
+                  <div class="dl-split" id="dlSplitWrap">
+                    <button type="button" id="turboDownloadBtn" class="ui-btn dl-main-btn" title="12-Thread Turbo Download to Chores/Downloads">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                      </svg>
+                      <span id="downloadMp4Label">Turbo DL</span>
+                    </button>
+                    <button type="button" class="ui-btn dl-caret-btn" id="dlCaretBtn" title="Choose quality or browser save">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                        <polyline points="6 9 12 15 18 9"/>
+                      </svg>
+                    </button>
+                    <div class="dl-menu" id="dlQualityMenu">
+                      <div class="dl-menu-header">Turbo Download (12x Threads)</div>
+                      <div id="dlQualityItems"></div>
+                    </div>
+                  </div>
+
+                  <button type="button" class="ui-btn" id="jumpCommentsBtn">
+                    Comments (<span id="jumpCommentsCount">0</span>)
+                  </button>
+
+                  <a
+                    id="mainWatchPhBtn"
+                    href="https://www.pornhub.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="ui-btn ui-btn-primary"
+                  >
+                    <span>Watch on PH</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+                      <path d="M7 17L17 7M9 7h8v8"/>
+                    </svg>
+                  </a>
+                </div>
+              </div>
+
+              <div class="watch-meta-rows" id="watchMetaRows"></div>
+            </div>
+
+            <!-- Related Videos Below Player -->
+            <div class="below-section" id="relatedSectionWrap">
+              <div class="section-bar">
+                <h2>
+                  <span>Related Videos</span>
+                  <span class="count-badge" id="relatedCountBadge"></span>
+                </h2>
+              </div>
+              <div class="related-below-grid" id="relatedBelowGrid"></div>
+            </div>
+
+            <!-- Comments Section -->
+            <div class="below-section" id="commentsSection">
+              <div class="section-bar">
+                <h2>
+                  <span>Comments</span>
+                  <span class="count-badge" id="commentsTotalBadge">(0)</span>
+                </h2>
+                <select class="ui-select" id="commentSortSelect" style="height:30px; font-size:12px;">
+                  <option value="1">Top Comments</option>
+                  <option value="0">Newest First</option>
+                </select>
+              </div>
+              <div class="comments-wrap" id="commentsList"></div>
+            </div>
+          </div>
+
+          <!-- Right Sidebar -->
+          <aside class="watch-sidebar" id="watchSidebar">
+            <div class="sidebar-header">
+              <h3>Up Next</h3>
+              <label class="toggle-label">
+                <input type="checkbox" id="autoplayNextToggle" />
+                <span>Autoplay</span>
+              </label>
+            </div>
+            <div class="side-list" id="sidebarList"></div>
+          </aside>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE =
+      window.location.protocol === "http:" || window.location.protocol === "https:"
+        ? ""
+        : "http://127.0.0.1:8765";
+    const IS_FILE_PROTOCOL = window.location.protocol === "file:";
+
+    function apiUrl(path) {
+      if (!path) return "";
+      if (path.startsWith("http://") || path.startsWith("https://")) return path;
+      return `${API_BASE}${path}`;
+    }
+
+    function thumbUrl(raw) {
+      if (!raw) return "";
+      return IS_FILE_PROTOCOL
+        ? `${API_BASE}/api/thumb?url=${encodeURIComponent(raw)}`
+        : raw;
+    }
+
+    function proxyThumbUrl(raw) {
+      return raw ? `${API_BASE}/api/thumb?url=${encodeURIComponent(raw)}` : "";
+    }
+
+    function esc(s) {
+      const d = document.createElement("div");
+      d.textContent = s == null ? "" : String(s);
+      return d.innerHTML;
+    }
+
+    function fmtNum(n) {
+      return Number(n || 0).toLocaleString();
+    }
+
+    function fmtCompact(n) {
+      const v = Number(n || 0);
+      if (v >= 1_000_000) return (v / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M";
+      if (v >= 1_000) return (v / 1_000).toFixed(1).replace(/\.0$/, "") + "K";
+      return String(v);
+    }
+
+    function formatBytes(bytes) {
+      const b = Number(bytes || 0);
+      if (!b || b <= 0) return "0 MB";
+      if (b >= 1024 * 1024 * 1024) return (b / (1024 * 1024 * 1024)).toFixed(2) + " GB";
+      return (b / (1024 * 1024)).toFixed(1) + " MB";
+    }
+
+    function fmtClock(sec) {
+      if (!isFinite(sec) || sec < 0) sec = 0;
+      const total = Math.floor(sec);
+      const s = total % 60;
+      const m = Math.floor(total / 60) % 60;
+      const h = Math.floor(total / 3600);
+      if (h > 0) {
+        return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+      }
+      return `${m}:${String(s).padStart(2, "0")}`;
+    }
+
+    const COUNTRIES = [
+      { cc: "", label: "Auto (Current IP)" },
+      { cc: "world", label: "Worldwide" },
+      { cc: "eg", label: "Egypt" },
+      { cc: "us", label: "United States" },
+      { cc: "gb", label: "United Kingdom" },
+      { cc: "de", label: "Germany" },
+      { cc: "fr", label: "France" },
+      { cc: "jp", label: "Japan" },
+      { cc: "br", label: "Brazil" },
+      { cc: "ca", label: "Canada" },
+      { cc: "au", label: "Australia" },
+      { cc: "es", label: "Spain" },
+      { cc: "it", label: "Italy" },
+      { cc: "nl", label: "Netherlands" },
+      { cc: "pl", label: "Poland" },
+      { cc: "mx", label: "Mexico" },
+      { cc: "ru", label: "Russia" },
+    ];
+
+    // App State
+    const state = {
+      activeView: "browse", // 'browse' | 'watch' | 'downloads'
+      savedScrollY: 0,
+      searchMode: "filter", // 'filter' | 'global'
+      feedType: "hottest",  // 'hottest' | 'search' | 'performer'
+      selectedCc: "",
+      country: "",
+      countryCode: "",
+      page: 1,
+      filterQuery: "",
+      globalQuery: "",
+      sortBy: "rank",
+      globalOrdering: "relevant",
+      performerOrdering: "newest",
+      currentPerformer: null, // { name, path, kind, ph_url, stats }
+      rawVideos: [],
+      relatedSearches: [],
+
+      // Watch / Player State
+      currentWatchId: "",
+      isLocalWatch: false,
+      watchData: null,
+      activeMarkers: [], // chapters or peak_moments
+      hlsInstance: null,
+      streamEngine: "hls",
+      selectedQuality: 0,
+      playbackRate: 1,
+      showRemainingTime: false,
+      embedMode: false,
+      theaterMode: false,
+      abStart: null,
+      abEnd: null,
+      scrubReady: false,
+      scrubPendingTime: null,
+      scrubBusy: false,
+      cursorTimer: null,
+
+      // Stealth Mode
+      stealthMode: false,
+      savedTitleBeforeStealth: "PH Explorer",
+    };
+
+    // Hold-for-2x variables (declared early to avoid any TDZ issues)
+    let spaceDown = false;
+    let spaceHoldTimer = null;
+    let mouseHoldTimer = null;
+    let isHolding2x = false;
+    let holdSource = null;
+    let suppressNextVideoClick = false;
+
+    // DOM References
+    const elBrowseView = document.getElementById("browseView");
+    const elDownloadsView = document.getElementById("downloadsView");
+    const elWatchView = document.getElementById("watchView");
+    const elOfflineAlert = document.getElementById("offlineAlert");
+
+    const elBrandHome = document.getElementById("brandHome");
+    const elRegionWrap = document.getElementById("regionWrap");
+    const elRegionBtn = document.getElementById("regionBtn");
+    const elRegionText = document.getElementById("regionText");
+    const elRegionCode = document.getElementById("regionCode");
+    const elRegionMenu = document.getElementById("regionMenu");
+
+    const elSearchForm = document.getElementById("searchForm");
+    const elSearchModeSelect = document.getElementById("searchModeSelect");
+    const elSearchInput = document.getElementById("searchInput");
+    const elSearchClearBtn = document.getElementById("searchClearBtn");
+    const elAcDropdown = document.getElementById("acDropdown");
+
+    const elSortSelect = document.getElementById("sortSelect");
+    const elGlobalOrderSelect = document.getElementById("globalOrderSelect");
+    const elPerformerOrderSelect = document.getElementById("performerOrderSelect");
+    const elDownloadsNavBtn = document.getElementById("downloadsNavBtn");
+    const elDlNavBadge = document.getElementById("dlNavBadge");
+    const elRefreshBtn = document.getElementById("refreshBtn");
+
+    const elPerformerBanner = document.getElementById("performerBanner");
+    const elPerfNameHeading = document.getElementById("perfNameHeading");
+    const elPerfKindBadge = document.getElementById("perfKindBadge");
+    const elPerfStatsRow = document.getElementById("perfStatsRow");
+    const elPerfExitBtn = document.getElementById("perfExitBtn");
+    const elPerfPhLink = document.getElementById("perfPhLink");
+
+    const elBrowseHeaderBar = document.getElementById("browseHeaderBar");
+    const elBrowseHeading = document.getElementById("browseHeading");
+    const elBrowseStats = document.getElementById("browseStats");
+    const elBrowseGrid = document.getElementById("browseGrid");
+    const elFilterStrip = document.getElementById("filterStrip");
+    const elFilterStripText = document.getElementById("filterStripText");
+    const elClearFilterBtn = document.getElementById("clearFilterBtn");
+    const elEscalateSearchBtn = document.getElementById("escalateSearchBtn");
+    const elPaginationBar = document.getElementById("paginationBar");
+    const elPrevPageBtn = document.getElementById("prevPageBtn");
+    const elNextPageBtn = document.getElementById("nextPageBtn");
+    const elPageIndicator = document.getElementById("pageIndicator");
+
+    const elDlJobsPanel = document.getElementById("dlJobsPanel");
+    const elDlFilesGrid = document.getElementById("dlFilesGrid");
+    const elDlFolderLabel = document.getElementById("dlFolderLabel");
+    const elDlBackBtn = document.getElementById("dlBackBtn");
+
+    // Watch & Player DOM
+    const elWatchLayout = document.getElementById("watchLayout");
+    const elBackToBrowseBtn = document.getElementById("backToBrowseBtn");
+    const elBackToBrowseLabel = document.getElementById("backToBrowseLabel");
+    const elToggleEmbedBtn = document.getElementById("toggleEmbedModeBtn");
+    const elTopWatchPhBtn = document.getElementById("topWatchPhBtn");
+    const elMainWatchPhBtn = document.getElementById("mainWatchPhBtn");
+    const elDlSplitWrap = document.getElementById("dlSplitWrap");
+    const elTurboDownloadBtn = document.getElementById("turboDownloadBtn");
+    const elDownloadMp4Label = document.getElementById("downloadMp4Label");
+    const elDlCaretBtn = document.getElementById("dlCaretBtn");
+    const elDlQualityMenu = document.getElementById("dlQualityMenu");
+    const elDlQualityItems = document.getElementById("dlQualityItems");
+
+    const elScenesStrip = document.getElementById("scenesStrip");
+    const elWatchTitle = document.getElementById("watchTitle");
+    const elWatchSubMeta = document.getElementById("watchSubMeta");
+    const elWatchVoteBox = document.getElementById("watchVoteBox");
+    const elWatchLikes = document.getElementById("watchLikes");
+    const elWatchDislikes = document.getElementById("watchDislikes");
+    const elWatchRatingPct = document.getElementById("watchRatingPct");
+    const elWatchRatioFill = document.getElementById("watchRatioFill");
+    const elWatchMetaRows = document.getElementById("watchMetaRows");
+    const elRelatedSectionWrap = document.getElementById("relatedSectionWrap");
+    const elRelatedBelowGrid = document.getElementById("relatedBelowGrid");
+    const elRelatedCountBadge = document.getElementById("relatedCountBadge");
+    const elWatchSidebar = document.getElementById("watchSidebar");
+    const elSidebarList = document.getElementById("sidebarList");
+    const elAutoplayToggle = document.getElementById("autoplayNextToggle");
+    const elCommentsSection = document.getElementById("commentsSection");
+    const elCommentsList = document.getElementById("commentsList");
+    const elCommentsTotalBadge = document.getElementById("commentsTotalBadge");
+    const elJumpCommentsBtn = document.getElementById("jumpCommentsBtn");
+    const elJumpCommentsCount = document.getElementById("jumpCommentsCount");
+    const elCommentSortSelect = document.getElementById("commentSortSelect");
+
+    const elPlayerStage = document.getElementById("playerStage");
+    const elVideo = document.getElementById("mainVideo");
+    const elEmbedFrame = document.getElementById("embedFallbackFrame");
+    const elScrubVideo = document.getElementById("scrubPreviewVideo");
+    const elScrubCanvas = document.getElementById("scrubCanvas");
+    const scrubCtx = elScrubCanvas.getContext("2d");
+    const elPlayerBezel = document.getElementById("playerBezel");
+    const elPlayerToast = document.getElementById("playerToast");
+    const elSpeedHoldPill = document.getElementById("speedHoldPill");
+    const elPlayerChrome = document.getElementById("playerChrome");
+    const elScrubContainer = document.getElementById("scrubContainer");
+    const elHeatmapSvg = document.getElementById("heatmapSvg");
+    const elScrubTooltip = document.getElementById("scrubTooltip");
+    const elScrubChapterLabel = document.getElementById("scrubChapterLabel");
+    const elScrubTimeLabel = document.getElementById("scrubTimeLabel");
+    const elScrubBuffered = document.getElementById("scrubBuffered");
+    const elScrubAbRange = document.getElementById("scrubAbRange");
+    const elScrubPlayed = document.getElementById("scrubPlayed");
+    const elScrubMarkers = document.getElementById("scrubMarkers");
+    const elScrubThumb = document.getElementById("scrubThumb");
+    const elPlayPauseBtn = document.getElementById("playPauseBtn");
+    const elIconPlay = document.getElementById("iconPlay");
+    const elIconPause = document.getElementById("iconPause");
+    const elSeekBackBtn = document.getElementById("seekBackBtn");
+    const elSeekFwdBtn = document.getElementById("seekFwdBtn");
+    const elNextVidBtn = document.getElementById("nextVidBtn");
+    const elMuteBtn = document.getElementById("muteBtn");
+    const elIconVolHigh = document.getElementById("iconVolHigh");
+    const elIconVolMuted = document.getElementById("iconVolMuted");
+    const elVolSlider = document.getElementById("volSlider");
+    const elTimeReadout = document.getElementById("timeReadout");
+    const elAbLoopBtn = document.getElementById("abLoopBtn");
+    const elLoopToggleBtn = document.getElementById("loopToggleBtn");
+    const elScreenshotBtn = document.getElementById("screenshotBtn");
+    const elSettingsBtn = document.getElementById("settingsBtn");
+    const elSettingsMenu = document.getElementById("settingsMenu");
+    const elQualityOptions = document.getElementById("qualityOptions");
+    const elSpeedOptions = document.getElementById("speedOptions");
+    const elEngineSectionWrap = document.getElementById("engineSectionWrap");
+    const elEngineOptions = document.getElementById("engineOptions");
+    const elActiveQualityBadge = document.getElementById("activeQualityBadge");
+    const elPipBtn = document.getElementById("pipBtn");
+    const elTheaterBtn = document.getElementById("theaterBtn");
+    const elHelpBtn = document.getElementById("helpBtn");
+    const elShortcutsModal = document.getElementById("shortcutsModal");
+    const elCloseShortcutsBtn = document.getElementById("closeShortcutsBtn");
+    const elFullscreenBtn = document.getElementById("fullscreenBtn");
+
+    /* ======================================================================
+       SUBTITLES: Pornhub closed captions first, local Whisper AI fallback
+       ====================================================================== */
+    const elCcBtn = document.getElementById("ccBtn");
+    const elSubOptions = document.getElementById("subOptions");
+    const elSubText = document.getElementById("subText");
+    const elSubStatus = document.getElementById("subStatus");
+    const elSubStatusText = document.getElementById("subStatusText");
+
+    const subs = {
+      enabled: localStorage.getItem("phx_subs_on") === "1",
+      pref: localStorage.getItem("phx_subs_pref") || "auto", // auto | ph | tiny | base
+      source: "off", // off | ph | ai
+      model: "base",
+      cues: [],
+      windows: [],
+      pending: false,
+      failCount: 0,
+      retryAt: 0,
+      lastError: "",
+      token: 0,
+      phCues: null,
+      timer: null,
+      lastText: null,
+    };
+
+    function subsContext() {
+      if (state.isLocalWatch) return { file: state.localSubFile || "", vkey: state.localSubVkey || "" };
+      return { file: "", vkey: state.currentWatchId || "" };
+    }
+
+    function subsPhPossible() {
+      if (state.isLocalWatch) return !!state.localSubVkey;
+      return !!(state.watchData && state.watchData.subtitles && state.watchData.subtitles.ph_available);
+    }
+
+    function subsAiPossible() {
+      if (state.isLocalWatch) return !!state.localSubFile;
+      const s = state.watchData && state.watchData.subtitles;
+      return !s || s.ai_available !== false;
+    }
+
+    function subsSetStatus(text, spinning = true) {
+      elSubStatusText.textContent = text || "";
+      elSubStatus.classList.toggle("visible", !!text);
+      elSubStatus.querySelector(".dot").style.display = spinning ? "" : "none";
+    }
+
+    function subsRenderText(t) {
+      let txt = "";
+      if (subs.source !== "off") {
+        const active = [];
+        for (const c of subs.cues) {
+          if (c.start > t) break;
+          if (t < c.end) active.push(c.text);
+        }
+        txt = active.slice(-2).join("\n");
+      }
+      if (txt !== subs.lastText) {
+        subs.lastText = txt;
+        elSubText.textContent = txt;
+        elSubText.classList.toggle("visible", !!txt);
+      }
+    }
+
+    function subsStopTimer() {
+      if (subs.timer) clearInterval(subs.timer);
+      subs.timer = null;
+    }
+
+    function subsClearAi() {
+      subs.windows = [];
+      subs.pending = false;
+      subs.failCount = 0;
+      subs.retryAt = 0;
+      subs.lastError = "";
+    }
+
+    // Called whenever the active media is destroyed (new video / leaving player)
+    function subsReset() {
+      subs.token++;
+      subs.source = "off";
+      subs.cues = [];
+      subs.phCues = null;
+      subsClearAi();
+      subsStopTimer();
+      subsRenderText(0);
+      subsSetStatus("");
+      elCcBtn.classList.remove("active");
+    }
+
+    function subsCovered(t) {
+      return subs.windows.find((w) => t >= w.start - 0.05 && t < w.end);
+    }
+
+    async function subsFetchAiWindow(start) {
+      const tok = subs.token;
+      const ctx = subsContext();
+      const qs = new URLSearchParams({ start: start.toFixed(2), model: subs.model });
+      if (ctx.file) qs.set("file", ctx.file);
+      else qs.set("vkey", ctx.vkey);
+      subs.pending = true;
+      try {
+        const resp = await fetch(apiUrl(`/api/subs/ai?${qs.toString()}`));
+        const data = await resp.json();
+        if (tok !== subs.token) return;
+        if (!resp.ok || data.error) throw new Error(data.error || `HTTP ${resp.status}`);
+        const ws = data.window_start, we = data.window_end;
+        subs.windows.push({ start: ws, end: we, isLast: !!data.is_last });
+        subs.cues = subs.cues
+          .filter((c) => c.start < ws || c.start >= we)
+          .concat(data.cues || [])
+          .sort((a, b) => a.start - b.start);
+        subs.failCount = 0;
+        subs.lastError = "";
+      } catch (err) {
+        if (tok !== subs.token) return;
+        subs.failCount++;
+        subs.lastError = String(err.message || err);
+        subs.retryAt = Date.now() + Math.min(20000, 2500 * subs.failCount);
+        console.warn("AI subtitles failed:", err);
+      } finally {
+        if (tok === subs.token) subs.pending = false;
+      }
+    }
+
+    function subsTick() {
+      if (subs.source === "off" || state.embedMode) return;
+      const t = elVideo.currentTime || 0;
+      subsRenderText(t);
+      if (subs.source !== "ai") return;
+
+      const cur = subsCovered(t);
+      if (!cur) {
+        if (subs.failCount >= 3 && subs.lastError) {
+          subsSetStatus(`AI subtitles error: ${subs.lastError.slice(0, 80)}`, false);
+        } else {
+          subsSetStatus(`Local AI transcribing (${subs.model})...`);
+        }
+      } else {
+        subsSetStatus("");
+      }
+
+      if (subs.pending || Date.now() < subs.retryAt) return;
+      if (!cur) {
+        subsFetchAiWindow(t);
+      } else if (!cur.isLast && cur.end - t < 40 && !subsCovered(cur.end + 0.1)) {
+        subsFetchAiWindow(cur.end + 0.05); // prefetch next slice ahead of playback
+      }
+    }
+
+    function subsStartTimer() {
+      subsStopTimer();
+      subs.timer = setInterval(subsTick, 150);
+      subsTick();
+    }
+
+    async function subsActivate() {
+      const tok = ++subs.token;
+      subs.source = "off";
+      subs.cues = [];
+      subsClearAi();
+      subsStopTimer();
+      subsRenderText(0);
+      subsSetStatus("");
+
+      const ctx = subsContext();
+      if (!ctx.vkey && !ctx.file) return;
+
+      if ((subs.pref === "auto" || subs.pref === "ph") && subsPhPossible()) {
+        if (!subs.phCues) {
+          subsSetStatus("Loading Pornhub captions...");
+          try {
+            const resp = await fetch(apiUrl(`/api/subs/ph?vkey=${encodeURIComponent(ctx.vkey)}`));
+            const data = await resp.json();
+            if (tok !== subs.token) return;
+            subs.phCues = data.available ? data.cues || [] : [];
+          } catch (_) {
+            if (tok !== subs.token) return;
+            subs.phCues = [];
+          }
+          subsSetStatus("");
+        }
+        if (subs.phCues.length) {
+          subs.source = "ph";
+          subs.cues = subs.phCues;
+          elCcBtn.classList.add("active");
+          renderSubOptions();
+          showPlayerToast("Subtitles: Pornhub captions");
+          subsStartTimer();
+          return;
+        }
+      }
+
+      if (!subsAiPossible()) {
+        renderSubOptions();
+        showPlayerToast("No subtitles available for this video");
+        return;
+      }
+      if (subs.pref === "ph") showPlayerToast("No Pornhub captions — using local AI");
+      subs.model = subs.pref === "tiny" ? "tiny" : "base";
+      subs.source = "ai";
+      elCcBtn.classList.add("active");
+      renderSubOptions();
+      if (subs.pref !== "ph") showPlayerToast(`Subtitles: Local AI (${subs.model === "tiny" ? "Fast" : "Accurate"})`);
+      subsStartTimer();
+    }
+
+    function subsDisable() {
+      subs.token++;
+      subs.source = "off";
+      subs.cues = [];
+      subsClearAi();
+      subsStopTimer();
+      subsRenderText(0);
+      subsSetStatus("");
+      elCcBtn.classList.remove("active");
+      renderSubOptions();
+    }
+
+    function subsSetEnabled(on, toast = true) {
+      subs.enabled = on;
+      localStorage.setItem("phx_subs_on", on ? "1" : "0");
+      if (on) subsActivate();
+      else {
+        subsDisable();
+        if (toast) showPlayerToast("Subtitles off");
+      }
+    }
+
+    function renderSubOptions() {
+      const phOk = subsPhPossible();
+      const aiOk = subsAiPossible();
+      const cur = subs.source === "off" ? "off" : subs.source === "ph" ? "ph" : subs.model;
+      const opts = [
+        { id: "off", label: "Off", ok: true },
+        { id: "ph", label: "Pornhub", ok: phOk, title: phOk ? "Official Pornhub captions" : "No Pornhub captions for this video" },
+        { id: "tiny", label: "AI Fast", ok: aiOk, title: "Local Whisper tiny.en (fastest)" },
+        { id: "base", label: "AI Accurate", ok: aiOk, title: "Local Whisper base.en (better accuracy)" },
+      ];
+      elSubOptions.innerHTML = opts
+        .map(
+          (o) =>
+            `<button type="button" class="s-opt ${o.id === cur ? "selected" : ""}" data-sub="${o.id}" ${o.ok ? "" : "disabled"} title="${esc(o.title || "")}">${o.label}</button>`
+        )
+        .join("");
+      elSubOptions.querySelectorAll("[data-sub]").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const id = btn.getAttribute("data-sub");
+          if (id === "off") return subsSetEnabled(false);
+          subs.pref = id;
+          localStorage.setItem("phx_subs_pref", id);
+          subsSetEnabled(true);
+        });
+      });
+    }
+
+    // Called once a new video's streams are ready (online or offline)
+    function subsOnVideoReady() {
+      renderSubOptions();
+      if (subs.enabled) subsActivate();
+    }
+
+    elCcBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (state.embedMode) return showPlayerToast("Subtitles need the direct player");
+      subsSetEnabled(subs.source === "off");
+    });
+
+    /* ======================================================================
+       DOUBLE-ESC "CHORES" STEALTH MODE
+       ====================================================================== */
+    const choresItems = [
+      { text: "Clean kitchen counters & load dishwasher", cat: "Kitchen", done: true },
+      { text: "Take out trash and sort recycling bins", cat: "Home", done: true },
+      { text: "Wash dark laundry load & hang to dry", cat: "Laundry", done: false },
+      { text: "Pick up milk, eggs, coffee, and bread", cat: "Groceries", done: false },
+      { text: "Vacuum living room and hallway rugs", cat: "Cleaning", done: false },
+      { text: "Review monthly electricity & internet bills", cat: "Admin", done: false },
+    ];
+
+    function renderChoresChecklist() {
+      const listEl = document.getElementById("choresList");
+      const progEl = document.getElementById("choresProgressText");
+      const doneCount = choresItems.filter((c) => c.done).length;
+      progEl.textContent = `${doneCount} of ${choresItems.length} completed`;
+
+      listEl.innerHTML = choresItems
+        .map(
+          (item, i) => `
+          <li class="chore-row ${item.done ? "done" : ""}">
+            <label class="chore-left">
+              <input type="checkbox" data-chore-idx="${i}" ${item.done ? "checked" : ""} />
+              <span class="chore-txt">${esc(item.text)}</span>
+            </label>
+            <span class="chore-cat">${esc(item.cat)}</span>
+          </li>`
+        )
+        .join("");
+
+      listEl.querySelectorAll("[data-chore-idx]").forEach((cb) => {
+        cb.addEventListener("change", () => {
+          const idx = Number(cb.getAttribute("data-chore-idx"));
+          if (choresItems[idx]) {
+            choresItems[idx].done = cb.checked;
+            renderChoresChecklist();
+          }
+        });
+      });
+    }
+
+    document.getElementById("choresAddForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const inp = document.getElementById("choreNewInput");
+      const val = inp.value.trim();
+      if (!val) return;
+      choresItems.unshift({ text: val, cat: "General", done: false });
+      inp.value = "";
+      renderChoresChecklist();
+    });
+
+    function toggleStealthMode() {
+      state.stealthMode = !state.stealthMode;
+      if (state.stealthMode) {
+        state.savedTitleBeforeStealth = document.title;
+        stopHold2x();
+        if (!elVideo.paused) elVideo.pause();
+        if (document.fullscreenElement) {
+          document.exitFullscreen().catch(() => {});
+        }
+        document.body.classList.add("stealth-active");
+        document.title = "Household Chores — Weekly Checklist";
+        renderChoresChecklist();
+      } else {
+        document.body.classList.remove("stealth-active");
+        document.title = state.savedTitleBeforeStealth || "PH Explorer";
+      }
+    }
+
+    let lastEscTime = 0;
+    window.addEventListener(
+      "keydown",
+      (e) => {
+        if (e.key === "Escape") {
+          const now = performance.now();
+          if (now - lastEscTime < 420) {
+            e.preventDefault();
+            e.stopPropagation();
+            lastEscTime = 0;
+            toggleStealthMode();
+            return;
+          }
+          lastEscTime = now;
+        }
+      },
+      true
+    );
+
+    /* ======================================================================
+       COUNTRY SWITCHER ("Hottest in ...")
+       ====================================================================== */
+    function renderCountryMenu() {
+      elRegionMenu.innerHTML = COUNTRIES.map(
+        (c) => `
+        <button type="button" class="region-opt ${c.cc === state.selectedCc ? "active" : ""}" data-cc="${c.cc}">
+          <span>${esc(c.label)}</span>
+          ${c.cc ? `<span style="font-size:11px; opacity:0.65;">${esc(c.cc.toUpperCase())}</span>` : ""}
+        </button>`
+      ).join("");
+
+      elRegionMenu.querySelectorAll("[data-cc]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          state.selectedCc = btn.getAttribute("data-cc") || "";
+          elRegionMenu.classList.remove("open");
+          renderCountryMenu();
+          if (state.activeView !== "browse") switchMainView("browse");
+          fetchHottestFeed(1);
+        });
+      });
+    }
+
+    elRegionBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      renderCountryMenu();
+      elRegionMenu.classList.toggle("open");
+    });
+
+    document.addEventListener("click", (e) => {
+      if (!elRegionWrap.contains(e.target)) elRegionMenu.classList.remove("open");
+      if (!elSearchForm.contains(e.target)) elAcDropdown.classList.remove("open");
+      if (!elDlSplitWrap.contains(e.target)) elDlQualityMenu.classList.remove("open");
+    });
+
+    /* ======================================================================
+       LIVE SEARCH AUTOCOMPLETE
+       ====================================================================== */
+    let acTimer = null;
+    let acFocusIdx = -1;
+
+    async function runAutocomplete(q) {
+      const trimmed = (q || "").trim();
+      if (trimmed.length < 2) {
+        elAcDropdown.classList.remove("open");
+        return;
+      }
+      try {
+        const resp = await fetch(apiUrl(`/api/autocomplete?q=${encodeURIComponent(trimmed)}`));
+        const data = await resp.json();
+        if (elSearchInput.value.trim() !== trimmed) return;
+
+        const perfs = data.performers || [];
+        const queries = data.queries || [];
+        if (perfs.length === 0 && queries.length === 0) {
+          elAcDropdown.classList.remove("open");
+          return;
+        }
+
+        let html = "";
+        if (perfs.length > 0) {
+          html += `<div class="ac-group-label">Performers &amp; Channels</div>`;
+          html += perfs
+            .map(
+              (p) => `
+              <button type="button" class="ac-row" data-ac-perf="${esc(p.path)}" data-ac-name="${esc(p.name)}">
+                <span>${esc(p.name)}</span>
+                <span class="ac-badge">${esc(p.kind)}</span>
+              </button>`
+            )
+            .join("");
+        }
+        if (queries.length > 0) {
+          html += `<div class="ac-group-label">Search Suggestions</div>`;
+          html += queries
+            .map(
+              (term) => `
+              <button type="button" class="ac-row" data-ac-query="${esc(term)}">
+                <span>${esc(term)}</span>
+              </button>`
+            )
+            .join("");
+        }
+
+        elAcDropdown.innerHTML = html;
+        acFocusIdx = -1;
+        elAcDropdown.classList.add("open");
+
+        elAcDropdown.querySelectorAll("[data-ac-perf]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            elAcDropdown.classList.remove("open");
+            openPerformerFeed({
+              path: btn.getAttribute("data-ac-perf"),
+              name: btn.getAttribute("data-ac-name"),
+            });
+          });
+        });
+
+        elAcDropdown.querySelectorAll("[data-ac-query]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const term = btn.getAttribute("data-ac-query") || "";
+            elAcDropdown.classList.remove("open");
+            elSearchModeSelect.value = "global";
+            syncTopbarControls();
+            elSearchInput.value = term;
+            elSearchClearBtn.classList.add("visible");
+            fetchGlobalSearch(term, 1);
+          });
+        });
+      } catch (_) {}
+    }
+
+    /* ======================================================================
+       VIEW SWITCHING & BROWSE / PERFORMER FEEDS
+       ====================================================================== */
+    function switchMainView(targetView, pushHash = true) {
+      if (state.activeView === "watch" && targetView !== "watch") {
+        destroyActiveMedia();
+        if (pushHash && window.location.hash.startsWith("#watch=")) {
+          history.pushState(null, "", window.location.pathname + window.location.search);
+        }
+      }
+      state.activeView = targetView;
+      elBrowseView.style.display = targetView === "browse" ? "block" : "none";
+      elDownloadsView.style.display = targetView === "downloads" ? "block" : "none";
+      elWatchView.style.display = targetView === "watch" ? "block" : "none";
+      elDownloadsNavBtn.classList.toggle("active-tab", targetView === "downloads");
+      syncTopbarControls();
+    }
+
+    function syncTopbarControls() {
+      state.searchMode = elSearchModeSelect.value;
+      const inBrowse = state.activeView === "browse";
+      elGlobalOrderSelect.style.display =
+        inBrowse && state.feedType === "search" ? "inline-flex" : "none";
+      elPerformerOrderSelect.style.display =
+        inBrowse && state.feedType === "performer" ? "inline-flex" : "none";
+      elSortSelect.style.display = inBrowse ? "inline-flex" : "none";
+
+      elSearchInput.placeholder =
+        state.searchMode === "global"
+          ? "Search Pornhub videos, stars, or channels..."
+          : "Filter current feed (or switch left dropdown to Search PH)...";
+    }
+
+    function renderBrowseSkeletons(n = 12) {
+      elBrowseGrid.innerHTML = Array.from({ length: n })
+        .map(
+          () => `
+          <div class="skeleton-item">
+            <div class="skeleton-box" style="aspect-ratio:16/9;"></div>
+            <div class="skeleton-box" style="height:15px; width:90%;"></div>
+            <div class="skeleton-box" style="height:12px; width:60%;"></div>
+          </div>`
+        )
+        .join("");
+    }
+
+    async function fetchHottestFeed(page = 1) {
+      state.feedType = "hottest";
+      state.currentPerformer = null;
+      state.page = page;
+      elOfflineAlert.classList.remove("visible");
+      elPerformerBanner.classList.remove("visible");
+      elBrowseHeaderBar.style.display = "flex";
+      syncTopbarControls();
+
+      if (state.activeView === "browse") renderBrowseSkeletons();
+      elBrowseStats.textContent = "Loading...";
+
+      try {
+        const qs = new URLSearchParams({ page: String(page) });
+        if (state.selectedCc) qs.set("cc", state.selectedCc);
+        const resp = await fetch(apiUrl(`/api/hottest?${qs.toString()}`));
+        const data = await resp.json();
+        if (!resp.ok || data.error) throw new Error(data.error || `HTTP ${resp.status}`);
+
+        state.country = data.country || "Your Region";
+        state.countryCode = data.country_code || "";
+        state.rawVideos = data.videos || [];
+
+        elRegionText.textContent =
+          state.country === "Worldwide" ? "Worldwide" : `Hottest in ${state.country}`;
+        if (state.countryCode) {
+          elRegionCode.textContent = state.countryCode;
+          elRegionCode.style.display = "inline-block";
+        } else {
+          elRegionCode.style.display = "none";
+        }
+        renderBrowseView();
+      } catch (err) {
+        console.error(err);
+        elOfflineAlert.classList.add("visible");
+        elBrowseGrid.innerHTML = "";
+        elBrowseStats.textContent = "Connection error";
+      }
+    }
+
+    async function fetchGlobalSearch(query, page = 1) {
+      const q = (query || "").trim();
+      if (!q) return fetchHottestFeed(1);
+
+      state.feedType = "search";
+      state.currentPerformer = null;
+      state.globalQuery = q;
+      state.page = page;
+      elOfflineAlert.classList.remove("visible");
+      elPerformerBanner.classList.remove("visible");
+      elBrowseHeaderBar.style.display = "flex";
+
+      if (state.activeView !== "browse") switchMainView("browse", true);
+      syncTopbarControls();
+      renderBrowseSkeletons();
+      elBrowseHeading.textContent = `Results for "${q}"`;
+      elBrowseStats.textContent = "Searching...";
+
+      try {
+        const qs = new URLSearchParams({
+          q,
+          ordering: state.globalOrdering,
+          page: String(page),
+        });
+        const resp = await fetch(apiUrl(`/api/search?${qs.toString()}`));
+        const data = await resp.json();
+        if (!resp.ok || data.error) throw new Error(data.error || `HTTP ${resp.status}`);
+
+        state.rawVideos = data.videos || [];
+        state.relatedSearches = data.related_searches || [];
+        renderBrowseView();
+      } catch (err) {
+        console.error(err);
+        elOfflineAlert.classList.add("visible");
+        elBrowseGrid.innerHTML = "";
+        elBrowseStats.textContent = "Search failed";
+      }
+    }
+
+    async function openPerformerFeed({ path = "", name = "" }, page = 1) {
+      if (!path && !name) return;
+      state.feedType = "performer";
+      state.filterQuery = "";
+      state.page = page;
+      elOfflineAlert.classList.remove("visible");
+
+      if (state.activeView !== "browse") switchMainView("browse", true);
+      syncTopbarControls();
+      elBrowseHeaderBar.style.display = "none";
+      elPerformerBanner.classList.add("visible");
+      elPerfNameHeading.textContent = name || "Loading profile...";
+      elPerfStatsRow.textContent = "Fetching performer videos...";
+      renderBrowseSkeletons();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+
+      try {
+        const qs = new URLSearchParams({
+          sort: state.performerOrdering,
+          page: String(page),
+        });
+        if (path) qs.set("path", path);
+        if (name) qs.set("name", name);
+
+        const resp = await fetch(apiUrl(`/api/performer?${qs.toString()}`));
+        const data = await resp.json();
+        if (!resp.ok || data.error) throw new Error(data.error || `HTTP ${resp.status}`);
+
+        state.currentPerformer = {
+          name: data.name,
+          path: data.path,
+          kind: data.kind,
+          ph_url: data.ph_url,
+          stats: data.stats || [],
+        };
+        state.rawVideos = data.videos || [];
+
+        elPerfNameHeading.textContent = data.name;
+        elPerfKindBadge.textContent = data.kind || "Performer";
+        elPerfPhLink.href = data.ph_url || "https://www.pornhub.com";
+        const statPieces = [`${data.count} videos on page ${data.page}`, ...(data.stats || [])];
+        elPerfStatsRow.textContent = statPieces.join("  ·  ");
+
+        renderBrowseView();
+      } catch (err) {
+        console.error(err);
+        elPerfStatsRow.textContent = "Could not load performer profile.";
+        elBrowseGrid.innerHTML = "";
+      }
+    }
+
+    function getFilteredSortedVideos() {
+      let list = [...state.rawVideos];
+      const q = state.filterQuery.trim().toLowerCase();
+      if (q) {
+        list = list.filter((v) => {
+          return (
+            (v.title || "").toLowerCase().includes(q) ||
+            (v.uploader || "").toLowerCase().includes(q) ||
+            (v.stars || []).some((s) => s.toLowerCase().includes(q)) ||
+            (v.tags || []).some((t) => t.toLowerCase().includes(q))
+          );
+        });
+      }
+
+      switch (state.sortBy) {
+        case "likes":
+          list.sort((a, b) => (b.likes || 0) - (a.likes || 0));
+          break;
+        case "rating":
+          list.sort((a, b) => (b.rating_percent || 0) - (a.rating_percent || 0));
+          break;
+        case "views":
+          list.sort((a, b) => (b.views || 0) - (a.views || 0));
+          break;
+        case "longest":
+          list.sort((a, b) => (b.duration_seconds || 0) - (a.duration_seconds || 0));
+          break;
+        case "shortest":
+          list.sort((a, b) => (a.duration_seconds || 0) - (b.duration_seconds || 0));
+          break;
+        default:
+          list.sort((a, b) => (a.rank || 0) - (b.rank || 0));
+          break;
+      }
+      return list;
+    }
+
+    function createVideoCardHtml(v, compactTags = false) {
+      const tSrc = thumbUrl(v.thumbnail);
+      const pSrc = proxyThumbUrl(v.thumbnail);
+      const stars = v.stars || [];
+      const tags = v.tags || [];
+      const creatorLabel = stars.length > 0 ? stars[0] : v.uploader || "Pornhub";
+      const creatorPath = stars.length > 0 ? "" : v.uploader_path || "";
+
+      const tagLimit = compactTags ? 3 : 4;
+      const starPills = stars
+        .slice(0, 2)
+        .map(
+          (s) =>
+            `<button type="button" class="meta-pill star" data-perf-name="${esc(s)}" title="Open performer profile: ${esc(s)}">${esc(s)}</button>`
+        )
+        .join("");
+
+      const visibleTags = tags
+        .slice(0, tagLimit)
+        .map(
+          (t) =>
+            `<button type="button" class="meta-pill" data-tag-chip="${esc(t)}">${esc(t)}</button>`
+        )
+        .join("");
+
+      const hiddenTags = tags.slice(tagLimit);
+      const extraMarkup =
+        hiddenTags.length > 0
+          ? hiddenTags
+              .map(
+                (t) =>
+                  `<button type="button" class="meta-pill extra-pill" style="display:none" data-tag-chip="${esc(t)}">${esc(t)}</button>`
+              )
+              .join("") +
+            `<button type="button" class="meta-pill-more" data-more="${hiddenTags.length}">+${hiddenTags.length}</button>`
+          : "";
+
+      const viewsDisplay = v.views
+        ? `${fmtCompact(v.views)} views`
+        : v.views_text
+        ? `${esc(v.views_text)} views`
+        : "";
+
+      const likesDisplay = v.likes
+        ? fmtCompact(v.likes)
+        : v.rating_percent
+        ? `${Math.round(v.rating_percent)}%`
+        : "";
+
+      return `
+        <article class="vcard" data-vid="${esc(v.id)}">
+          <a
+            class="vcard-thumb"
+            href="#watch=${encodeURIComponent(v.id)}"
+            data-open-vid="${esc(v.id)}"
+            data-preview="${esc(v.preview_video || "")}"
+          >
+            ${v.rank ? `<span class="vcard-rank">#${v.rank}</span>` : ""}
+            <img src="${esc(tSrc)}" data-proxy="${esc(pSrc)}" alt="${esc(v.title)}" loading="lazy" />
+            <span class="vcard-duration">${esc(v.duration || "0:00")}</span>
+          </a>
+
+          <div class="vcard-info">
+            <a
+              class="vcard-title"
+              href="#watch=${encodeURIComponent(v.id)}"
+              data-open-vid="${esc(v.id)}"
+              title="${esc(v.title)}"
+            >
+              ${esc(v.title)}
+            </a>
+
+            <div class="vcard-subrow">
+              <button
+                type="button"
+                class="vcard-creator"
+                data-perf-name="${esc(creatorLabel)}"
+                data-perf-path="${esc(creatorPath)}"
+                title="View profile: ${esc(creatorLabel)}"
+              >
+                ${esc(creatorLabel)}
+              </button>
+              <span class="vcard-stats">
+                ${viewsDisplay ? `<span>${viewsDisplay}</span>` : ""}
+                ${
+                  likesDisplay
+                    ? `<span class="stat-inline" title="${fmtNum(v.likes)} likes (${v.rating_percent || 0}%)">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>
+                        </svg>
+                        ${likesDisplay}
+                      </span>`
+                    : ""
+                }
+              </span>
+            </div>
+
+            ${
+              starPills || visibleTags
+                ? `<div class="vcard-meta-pills">${starPills}${visibleTags}${extraMarkup}</div>`
+                : ""
+            }
+          </div>
+        </article>
+      `;
+    }
+
+    function wireGridEvents(containerEl) {
+      containerEl.querySelectorAll("img[data-proxy]").forEach((img) => {
+        img.addEventListener("error", function onErr() {
+          const p = img.getAttribute("data-proxy");
+          if (p && img.src !== p) img.src = p;
+          img.removeEventListener("error", onErr);
+        });
+      });
+
+      containerEl.querySelectorAll("[data-open-vid]").forEach((el) => {
+        el.addEventListener("click", (e) => {
+          if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
+          e.preventDefault();
+          const vid = el.getAttribute("data-open-vid");
+          if (vid) openWatchPlayer(vid);
+        });
+      });
+
+      containerEl.querySelectorAll(".vcard-thumb[data-preview]").forEach((wrap) => {
+        const purl = wrap.getAttribute("data-preview");
+        if (!purl) return;
+        let pv = null;
+        wrap.addEventListener("mouseenter", () => {
+          if (!pv) {
+            pv = document.createElement("video");
+            pv.src = purl;
+            pv.muted = true;
+            pv.loop = true;
+            pv.playsInline = true;
+            wrap.appendChild(pv);
+          }
+          pv.play().then(() => wrap.classList.add("playing")).catch(() => {});
+        });
+        wrap.addEventListener("mouseleave", () => {
+          wrap.classList.remove("playing");
+          if (pv) pv.pause();
+        });
+      });
+
+      containerEl.querySelectorAll(".meta-pill-more").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const parent = btn.parentElement;
+          const open = btn.getAttribute("data-open") === "1";
+          parent.querySelectorAll(".extra-pill").forEach((p) => {
+            p.style.display = open ? "none" : "inline-block";
+          });
+          btn.setAttribute("data-open", open ? "0" : "1");
+          btn.textContent = open ? `+${btn.getAttribute("data-more")}` : "less";
+        });
+      });
+
+      containerEl.querySelectorAll("[data-perf-name]").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const pName = btn.getAttribute("data-perf-name") || "";
+          const pPath = btn.getAttribute("data-perf-path") || "";
+          if (pName && pName !== "Pornhub") {
+            openPerformerFeed({ path: pPath, name: pName }, 1);
+          }
+        });
+      });
+
+      containerEl.querySelectorAll("[data-tag-chip]").forEach((chip) => {
+        chip.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const q = chip.getAttribute("data-tag-chip") || "";
+          handleTagClick(q);
+        });
+      });
+    }
+
+    function handleTagClick(query) {
+      if (!query) return;
+      elSearchModeSelect.value = "global";
+      syncTopbarControls();
+      elSearchInput.value = query;
+      elSearchClearBtn.classList.add("visible");
+      fetchGlobalSearch(query, 1);
+    }
+
+    function renderBrowseView() {
+      const list = getFilteredSortedVideos();
+
+      if (state.feedType === "hottest") {
+        elBrowseHeading.textContent =
+          state.country === "Worldwide"
+            ? "Trending Worldwide"
+            : state.country
+            ? `Hottest in ${state.country}`
+            : "Hottest Videos";
+      } else if (state.feedType === "search") {
+        elBrowseHeading.textContent = `Search Results: "${state.globalQuery}"`;
+      }
+
+      elBrowseStats.textContent = `${list.length} videos · Page ${state.page}`;
+
+      if (state.filterQuery.trim()) {
+        elFilterStrip.classList.add("visible");
+        elFilterStripText.textContent = `Filtered by "${state.filterQuery.trim()}" (${list.length} of ${state.rawVideos.length})`;
+        elEscalateSearchBtn.style.display = "inline-flex";
+      } else if (state.feedType === "search") {
+        elFilterStrip.classList.add("visible");
+        const relPills = (state.relatedSearches || [])
+          .slice(0, 8)
+          .map(
+            (term) =>
+              `<button type="button" class="meta-pill" data-rel-search="${esc(term)}">${esc(term)}</button>`
+          )
+          .join("");
+        elFilterStripText.innerHTML =
+          `Pornhub search results for <strong>"${esc(state.globalQuery)}"</strong>` +
+          (relPills ? ` <span style="margin-left:8px; color:var(--text-muted);">Related:</span> ${relPills}` : "");
+        elFilterStripText.querySelectorAll("[data-rel-search]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const term = btn.getAttribute("data-rel-search") || "";
+            elSearchInput.value = term;
+            elSearchClearBtn.classList.add("visible");
+            fetchGlobalSearch(term, 1);
+          });
+        });
+        elEscalateSearchBtn.style.display = "none";
+      } else {
+        elFilterStrip.classList.remove("visible");
+      }
+
+      if (list.length === 0) {
+        elBrowseGrid.innerHTML = `
+          <div class="empty-box">
+            <h3>No matching videos</h3>
+            <p>Nothing on this page matched "${esc(state.filterQuery || state.globalQuery)}".</p>
+            ${
+              state.filterQuery.trim()
+                ? `<button type="button" class="ui-btn ui-btn-primary" id="emptySearchPhBtn">Search Pornhub for "${esc(state.filterQuery.trim())}"</button>`
+                : `<button type="button" class="ui-btn" id="emptyBackBtn">Return to Hottest</button>`
+            }
+          </div>
+        `;
+        const sBtn = document.getElementById("emptySearchPhBtn");
+        if (sBtn) sBtn.onclick = () => runGlobalSearchFromFilter();
+        const bBtn = document.getElementById("emptyBackBtn");
+        if (bBtn) bBtn.onclick = () => resetToHottest();
+      } else {
+        elBrowseGrid.innerHTML = list.map((v) => createVideoCardHtml(v, false)).join("");
+        wireGridEvents(elBrowseGrid);
+      }
+
+      elPaginationBar.style.display = state.rawVideos.length > 0 ? "flex" : "none";
+      elPageIndicator.textContent = `Page ${state.page}`;
+      elPrevPageBtn.disabled = state.page <= 1;
+      elPrevPageBtn.style.opacity = state.page <= 1 ? "0.4" : "1";
+    }
+
+    /* ======================================================================
+       TURBO DOWNLOADS & OFFLINE LIBRARY
+       ====================================================================== */
+    let dlPollTimer = null;
+
+    async function refreshDownloadsState() {
+      try {
+        const resp = await fetch(apiUrl("/api/downloads"));
+        const data = await resp.json();
+        const jobs = data.jobs || [];
+        const files = data.files || [];
+
+        const activeJobs = jobs.filter((j) => j.status === "starting" || j.status === "downloading");
+        if (activeJobs.length > 0) {
+          const avgPct = Math.round(
+            activeJobs.reduce((acc, j) => acc + (j.percent || 0), 0) / activeJobs.length
+          );
+          elDlNavBadge.textContent = `${avgPct}%`;
+          elDlNavBadge.classList.add("visible");
+          scheduleDownloadPoll(900);
+        } else {
+          if (files.length > 0) {
+            elDlNavBadge.textContent = String(files.length);
+            elDlNavBadge.classList.add("visible");
+          } else {
+            elDlNavBadge.classList.remove("visible");
+          }
+          stopDownloadPoll();
+        }
+
+        if (state.activeView === "downloads") {
+          renderDownloadsView(jobs, files, data.folder || "Chores/Downloads");
+        }
+      } catch (_) {}
+    }
+
+    function scheduleDownloadPoll(ms = 1000) {
+      if (dlPollTimer) return;
+      dlPollTimer = setInterval(refreshDownloadsState, ms);
+    }
+
+    function stopDownloadPoll() {
+      if (dlPollTimer) {
+        clearInterval(dlPollTimer);
+        dlPollTimer = null;
+      }
+    }
+
+    function renderDownloadsView(jobs, files, folderPath) {
+      elDlFolderLabel.textContent = `${files.length} saved · ${folderPath}`;
+
+      const visibleJobs = jobs.filter((j) => j.status !== "completed");
+      if (visibleJobs.length === 0) {
+        elDlJobsPanel.style.display = "none";
+      } else {
+        elDlJobsPanel.style.display = "flex";
+        elDlJobsPanel.innerHTML = visibleJobs
+          .map((j) => {
+            const speedStr = j.speed_bps ? `${formatBytes(j.speed_bps)}/s` : "";
+            const sizeStr = j.total_bytes
+              ? `${formatBytes(j.downloaded_bytes)} / ${formatBytes(j.total_bytes)}`
+              : "Starting...";
+            const statusText =
+              j.status === "error"
+                ? `Error: ${j.error}`
+                : j.status === "cancelled"
+                ? "Cancelled"
+                : `${j.percent || 0}%`;
+            return `
+              <div class="dl-job-card">
+                <div class="dl-job-top">
+                  <div class="dl-job-title">${esc(j.title)} (${j.quality}p)</div>
+                  <div class="dl-job-stats">
+                    ${speedStr ? `<span style="color:var(--accent); font-weight:700;">${speedStr}</span>` : ""}
+                    <span>${sizeStr}</span>
+                    <span>${esc(statusText)}</span>
+                    ${
+                      j.status === "downloading" || j.status === "starting"
+                        ? `<button type="button" class="ui-btn" data-cancel-job="${esc(j.job_id)}" style="height:24px; padding:0 8px; font-size:11px;">Cancel</button>`
+                        : ""
+                    }
+                  </div>
+                </div>
+                <div class="dl-bar-track">
+                  <div class="dl-bar-fill" style="width:${Math.min(100, j.percent || 0)}%"></div>
+                </div>
+              </div>`;
+          })
+          .join("");
+
+        elDlJobsPanel.querySelectorAll("[data-cancel-job]").forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            const jid = btn.getAttribute("data-cancel-job");
+            await fetch(apiUrl("/api/downloads/cancel"), {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ job_id: jid }),
+            });
+            refreshDownloadsState();
+          });
+        });
+      }
+
+      if (files.length === 0) {
+        elDlFilesGrid.innerHTML = `
+          <div class="empty-box">
+            <h3>No offline videos yet</h3>
+            <p>Click <strong>Turbo DL</strong> on any video watch page to download multi-threaded HD MP4s into your Chores/Downloads folder.</p>
+          </div>`;
+        return;
+      }
+
+      elDlFilesGrid.innerHTML = files
+        .map((f) => {
+          const tSrc = f.thumbnail ? thumbUrl(f.thumbnail) : "";
+          const pSrc = f.thumbnail ? proxyThumbUrl(f.thumbnail) : "";
+          return `
+            <article class="vcard">
+              <div class="vcard-thumb" data-play-local="${esc(f.filename)}" title="Play offline MP4">
+                ${tSrc ? `<img src="${esc(tSrc)}" data-proxy="${esc(pSrc)}" alt="${esc(f.title)}" loading="lazy" />` : ""}
+                ${f.duration ? `<span class="vcard-duration">${esc(f.duration)}</span>` : ""}
+                ${f.quality ? `<span class="vcard-rank">${f.quality}p</span>` : ""}
+              </div>
+              <div class="vcard-info">
+                <div class="vcard-title" data-play-local="${esc(f.filename)}">${esc(f.title)}</div>
+                <div class="vcard-subrow">
+                  <span>${formatBytes(f.size_bytes)} · Offline MP4</span>
+                  <button type="button" class="meta-pill" data-del-local="${esc(f.filename)}" style="color:#fca5a5;">Delete</button>
+                </div>
+              </div>
+            </article>`;
+        })
+        .join("");
+
+      elDlFilesGrid.querySelectorAll("img[data-proxy]").forEach((img) => {
+        img.addEventListener("error", function onErr() {
+          const p = img.getAttribute("data-proxy");
+          if (p && img.src !== p) img.src = p;
+          img.removeEventListener("error", onErr);
+        });
+      });
+
+      elDlFilesGrid.querySelectorAll("[data-play-local]").forEach((el) => {
+        el.addEventListener("click", () => {
+          const fname = el.getAttribute("data-play-local");
+          const item = files.find((x) => x.filename === fname);
+          if (item) openLocalWatchPlayer(item);
+        });
+      });
+
+      elDlFilesGrid.querySelectorAll("[data-del-local]").forEach((btn) => {
+        btn.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          const fname = btn.getAttribute("data-del-local");
+          await fetch(apiUrl("/api/downloads/delete"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ filename: fname }),
+          });
+          refreshDownloadsState();
+        });
+      });
+    }
+
+    async function triggerTurboDownload(vid, quality) {
+      if (!vid) return;
+      try {
+        showPlayerToast(`Starting 12-thread Turbo Download (${quality}p)...`);
+        const resp = await fetch(apiUrl("/api/downloads/start"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: vid, quality: Number(quality || 0) }),
+        });
+        const data = await resp.json();
+        if (!resp.ok || data.error) throw new Error(data.error || "Failed");
+        showPlayerToast(`Downloading ${data.job.quality}p in background`);
+        refreshDownloadsState();
+      } catch (err) {
+        showPlayerToast(`Download error: ${err.message}`);
+      }
+    }
+
+    /* ======================================================================
+       WATCH VIEW & ROBUST VIDEO PLAYER
+       ====================================================================== */
+    function findCachedVideo(vid) {
+      const fromBrowse = state.rawVideos.find((x) => x.id === vid);
+      if (fromBrowse) return fromBrowse;
+      if (state.watchData) {
+        const fromRel = (state.watchData.related_videos || []).find((x) => x.id === vid);
+        if (fromRel) return fromRel;
+        const fromRec = (state.watchData.recommended_videos || []).find((x) => x.id === vid);
+        if (fromRec) return fromRec;
+      }
+      return null;
+    }
+
+    function destroyActiveMedia() {
+      subsReset();
+      stopHold2x();
+      spaceDown = false;
+      if (state.hlsInstance) {
+        state.hlsInstance.destroy();
+        state.hlsInstance = null;
+      }
+      elVideo.pause();
+      elVideo.removeAttribute("src");
+      elVideo.load();
+      elEmbedFrame.src = "about:blank";
+      elScrubVideo.removeAttribute("src");
+      state.scrubReady = false;
+      state.abStart = null;
+      state.abEnd = null;
+      state.activeMarkers = [];
+      elScrubMarkers.innerHTML = "";
+      elScenesStrip.classList.remove("visible");
+      updateAbLoopUI();
+    }
+
+    function openLocalWatchPlayer(fileItem) {
+      destroyActiveMedia();
+      state.isLocalWatch = true;
+      state.currentWatchId = fileItem.id || fileItem.filename;
+      state.localSubFile = fileItem.filename || "";
+      state.localSubVkey = fileItem.id && !String(fileItem.id).startsWith("local-") ? fileItem.id : "";
+      state.watchData = null;
+      switchMainView("watch", false);
+      window.scrollTo({ top: 0, behavior: "instant" });
+
+      elBackToBrowseLabel.textContent = "Back to Offline Library";
+      elToggleEmbedBtn.style.display = "none";
+      elTopWatchPhBtn.style.display = fileItem.id && !fileItem.id.startsWith("local-") ? "inline-flex" : "none";
+      elMainWatchPhBtn.style.display = elTopWatchPhBtn.style.display;
+      if (fileItem.id && !fileItem.id.startsWith("local-")) {
+        const phUrl = `https://www.pornhub.com/view_video.php?viewkey=${encodeURIComponent(fileItem.id)}`;
+        elTopWatchPhBtn.href = phUrl;
+        elMainWatchPhBtn.href = phUrl;
+      }
+
+      elDlSplitWrap.classList.remove("visible");
+      elWatchVoteBox.style.display = "none";
+      elJumpCommentsBtn.style.display = "none";
+      elRelatedSectionWrap.style.display = "none";
+      elCommentsSection.style.display = "none";
+      elWatchSidebar.style.display = "none";
+      elHeatmapSvg.innerHTML = "";
+
+      elWatchTitle.textContent = fileItem.title;
+      elWatchSubMeta.textContent = `${formatBytes(fileItem.size_bytes)}  ·  Offline Local MP4${fileItem.quality ? ` (${fileItem.quality}p)` : ""}`;
+      elWatchMetaRows.innerHTML = "";
+
+      const localUrl = apiUrl(fileItem.local_stream_url);
+      state.streamEngine = "mp4";
+      state.selectedQuality = fileItem.quality || 1080;
+      elActiveQualityBadge.textContent = fileItem.quality ? `${fileItem.quality}p` : "LOCAL";
+      setupScrubPreviewSource(fileItem.local_stream_url);
+      loadStreamUrl(localUrl, "mp4", 0, true);
+      renderLocalSettingsMenu();
+      subsOnVideoReady();
+    }
+
+    function renderLocalSettingsMenu() {
+      elQualityOptions.innerHTML = `<span style="font-size:12px; color:var(--text-secondary);">Offline File</span>`;
+      elEngineSectionWrap.style.display = "none";
+      renderSpeedButtons();
+    }
+
+    async function openWatchPlayer(vid, pushHash = true) {
+      if (!vid) return;
+      if (state.activeView === "browse") {
+        state.savedScrollY = window.scrollY;
+      }
+
+      destroyActiveMedia();
+      state.isLocalWatch = false;
+      state.currentWatchId = vid;
+      state.embedMode = false;
+      elEmbedFrame.style.display = "none";
+      elVideo.style.display = "block";
+      elPlayerChrome.style.display = "block";
+      elToggleEmbedBtn.style.display = "inline-flex";
+      elToggleEmbedBtn.textContent = "Use Embed Player";
+      elTopWatchPhBtn.style.display = "inline-flex";
+      elMainWatchPhBtn.style.display = "inline-flex";
+      elWatchVoteBox.style.display = "flex";
+      elJumpCommentsBtn.style.display = "inline-flex";
+      elRelatedSectionWrap.style.display = "block";
+      elCommentsSection.style.display = "block";
+      elWatchSidebar.style.display = "";
+      elEngineSectionWrap.style.display = "block";
+      elDlSplitWrap.classList.remove("visible");
+      elDlQualityMenu.classList.remove("open");
+
+      switchMainView("watch", false);
+      window.scrollTo({ top: 0, behavior: "instant" });
+
+      if (pushHash) {
+        const targetHash = `#watch=${encodeURIComponent(vid)}`;
+        if (window.location.hash !== targetHash) {
+          history.pushState({ vid }, "", targetHash);
+        }
+      }
+
+      if (state.feedType === "performer" && state.currentPerformer) {
+        elBackToBrowseLabel.textContent = `Back to ${state.currentPerformer.name}`;
+      } else if (state.feedType === "search") {
+        elBackToBrowseLabel.textContent = `Back to Search ("${state.globalQuery}")`;
+      } else {
+        elBackToBrowseLabel.textContent = `Back to Hottest${state.country ? " in " + state.country : ""}`;
+      }
+
+      const hint = findCachedVideo(vid);
+      const phOriginalUrl = `https://www.pornhub.com/view_video.php?viewkey=${encodeURIComponent(vid)}`;
+      elTopWatchPhBtn.href = phOriginalUrl;
+      elMainWatchPhBtn.href = phOriginalUrl;
+
+      if (hint) {
+        elWatchTitle.textContent = hint.title || "Loading video...";
+        elVideo.poster = thumbUrl(hint.thumbnail);
+        populateUnderPlayerInfo(hint);
+      } else {
+        elWatchTitle.textContent = "Loading video...";
+        elWatchMetaRows.innerHTML = "";
+        elWatchSubMeta.textContent = "";
+      }
+
+      elPlayerStage.classList.add("buffering");
+      elRelatedBelowGrid.innerHTML = `<div style="color:var(--text-muted); font-size:12.5px;">Loading related videos...</div>`;
+      elSidebarList.innerHTML = `<div style="color:var(--text-muted); font-size:12.5px;">Loading recommendations...</div>`;
+      elCommentsList.innerHTML = `<div style="color:var(--text-muted); font-size:12.5px; padding:12px 0;">Loading comments...</div>`;
+
+      try {
+        const resp = await fetch(apiUrl(`/api/video?id=${encodeURIComponent(vid)}`));
+        const data = await resp.json();
+        if (!resp.ok || data.error) throw new Error(data.error || `HTTP ${resp.status}`);
+        if (state.currentWatchId !== vid) return;
+
+        state.watchData = data;
+        const v = data.video;
+        if (!state.stealthMode) {
+          document.title = `${v.title} — PH Explorer`;
+        } else {
+          state.savedTitleBeforeStealth = `${v.title} — PH Explorer`;
+        }
+
+        elTopWatchPhBtn.href = v.url || phOriginalUrl;
+        elMainWatchPhBtn.href = v.url || phOriginalUrl;
+        elVideo.poster = thumbUrl(v.poster || v.thumbnail);
+
+        populateUnderPlayerInfo(v);
+        renderHeatmap(data.hotspots || []);
+        setupSceneMarkers(data.chapters || [], data.peak_moments || [], v.duration_seconds || 0);
+        setupScrubPreviewSource(data.streams.scrub_preview_mp4);
+        initStreamsAndPlay(data.streams, v.title, v.id);
+        subsOnVideoReady();
+        renderRelatedAndSidebar(data.related_videos || [], data.recommended_videos || []);
+        renderCommentsBlock(data.comments || { total: 0, items: [] });
+      } catch (err) {
+        console.error("Watch fetch failed:", err);
+        elPlayerStage.classList.remove("buffering");
+        showPlayerToast("Direct stream unavailable — switching to official embed");
+        enableEmbedFallback();
+      }
+    }
+
+    function setupSceneMarkers(chapters, peakMoments, fallbackDuration) {
+      const list = chapters && chapters.length > 0 ? chapters : peakMoments || [];
+      state.activeMarkers = list;
+      if (!list.length) {
+        elScrubMarkers.innerHTML = "";
+        elScenesStrip.classList.remove("visible");
+        return;
+      }
+
+      const isActionTags = chapters && chapters.length > 0;
+      const stripLabel = isActionTags ? "Jump to Action:" : "Most Replayed:";
+      elScenesStrip.innerHTML =
+        `<span class="scenes-label">${stripLabel}</span>` +
+        list
+          .map(
+            (m) => `
+          <button type="button" class="scene-pill" data-jump-sec="${m.seconds}">
+            <span>${esc(m.title)}</span>
+            <span class="scene-time">${fmtClock(m.seconds)}</span>
+          </button>`
+          )
+          .join("");
+      elScenesStrip.classList.add("visible");
+
+      elScenesStrip.querySelectorAll("[data-jump-sec]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const sec = Number(btn.getAttribute("data-jump-sec") || "0");
+          if (!state.embedMode && isFinite(sec)) {
+            elVideo.currentTime = sec;
+            elVideo.play().catch(() => {});
+          }
+        });
+      });
+
+      renderScrubMarkerTicks(fallbackDuration);
+    }
+
+    function renderScrubMarkerTicks(dur) {
+      const total = dur || elVideo.duration || 0;
+      if (!total || !state.activeMarkers.length) {
+        elScrubMarkers.innerHTML = "";
+        return;
+      }
+      elScrubMarkers.innerHTML = state.activeMarkers
+        .filter((m) => m.seconds > 0 && m.seconds < total)
+        .map((m) => {
+          const pct = ((m.seconds / total) * 100).toFixed(2);
+          return `<div class="scrub-tick" style="left:${pct}%"></div>`;
+        })
+        .join("");
+    }
+
+    function populateUnderPlayerInfo(v) {
+      elWatchTitle.textContent = v.title || "Untitled";
+
+      const metaParts = [];
+      if (v.views) metaParts.push(`${fmtNum(v.views)} views`);
+      else if (v.views_text) metaParts.push(`${v.views_text} views`);
+      if (v.duration) metaParts.push(v.duration);
+      if (v.publish_date) metaParts.push(v.publish_date.split(" ")[0]);
+      elWatchSubMeta.textContent = metaParts.join("  ·  ");
+
+      elWatchLikes.textContent = fmtNum(v.likes || 0);
+      elWatchDislikes.textContent = fmtNum(v.dislikes || 0);
+      const pct = v.rating_percent ? Math.round(v.rating_percent * 10) / 10 : 0;
+      elWatchRatingPct.textContent = pct ? `${pct}%` : "—";
+      elWatchRatioFill.style.width = `${Math.min(100, Math.max(0, pct))}%`;
+
+      const rows = [];
+      if (v.uploader) {
+        rows.push(
+          `<div class="watch-meta-row"><span class="watch-meta-key">Uploader</span><div class="watch-meta-val"><button type="button" class="watch-chip star-chip" data-watch-perf-name="${esc(v.uploader)}" data-watch-perf-path="${esc(v.uploader_path || "")}">${esc(v.uploader)}</button></div></div>`
+        );
+      }
+
+      const starLinks = v.star_links || [];
+      if (starLinks.length > 0 || (v.stars && v.stars.length > 0)) {
+        const items =
+          starLinks.length > 0
+            ? starLinks
+            : (v.stars || []).map((s) => ({ name: s, path: "" }));
+        const sHtml = items
+          .map(
+            (s) =>
+              `<button type="button" class="watch-chip star-chip" data-watch-perf-name="${esc(s.name)}" data-watch-perf-path="${esc(s.path || "")}">${esc(s.name)}</button>`
+          )
+          .join("");
+        rows.push(`<div class="watch-meta-row"><span class="watch-meta-key">Stars</span><div class="watch-meta-val">${sHtml}</div></div>`);
+      }
+
+      if (v.categories && v.categories.length > 0) {
+        const cHtml = v.categories
+          .map(
+            (c) => `<button type="button" class="watch-chip" data-watch-tag="${esc(c)}">${esc(c)}</button>`
+          )
+          .join("");
+        rows.push(`<div class="watch-meta-row"><span class="watch-meta-key">Categories</span><div class="watch-meta-val">${cHtml}</div></div>`);
+      }
+
+      if (v.tags && v.tags.length > 0) {
+        const tHtml = v.tags
+          .map(
+            (t) => `<button type="button" class="watch-chip" data-watch-tag="${esc(t)}">${esc(t)}</button>`
+          )
+          .join("");
+        rows.push(`<div class="watch-meta-row"><span class="watch-meta-key">Tags</span><div class="watch-meta-val">${tHtml}</div></div>`);
+      }
+
+      elWatchMetaRows.innerHTML = rows.join("");
+
+      elWatchMetaRows.querySelectorAll("[data-watch-perf-name]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          openPerformerFeed(
+            {
+              path: btn.getAttribute("data-watch-perf-path") || "",
+              name: btn.getAttribute("data-watch-perf-name") || "",
+            },
+            1
+          );
+        });
+      });
+
+      elWatchMetaRows.querySelectorAll("[data-watch-tag]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          handleTagClick(btn.getAttribute("data-watch-tag") || "");
+        });
+      });
+    }
+
+    /* Split Turbo Download Picker */
+    function buildBrowserDownloadHref(streamUrl, titleStr, quality) {
+      const dlSep = streamUrl.includes("?") ? "&" : "?";
+      const suffix = quality ? ` (${quality}p)` : "";
+      return apiUrl(`${streamUrl}${dlSep}download=${encodeURIComponent((titleStr || "video") + suffix)}`);
+    }
+
+    let dlSelectedQuality = 0;
+    let dlSizesProbedForVid = "";
+
+    function setupDownloadPicker(mp4List, titleStr, vid) {
+      elDlQualityMenu.classList.remove("open");
+      dlSizesProbedForVid = "";
+
+      if (!mp4List || mp4List.length === 0) {
+        elDlSplitWrap.classList.remove("visible");
+        return;
+      }
+
+      const chosen = mp4List.find((m) => m.quality === dlSelectedQuality) || mp4List[0];
+      dlSelectedQuality = chosen.quality;
+
+      const applySelection = (item) => {
+        dlSelectedQuality = item.quality;
+        elDownloadMp4Label.textContent = `Turbo DL (${item.quality}p)`;
+        elDlQualityItems.querySelectorAll(".dl-item-row").forEach((row) => {
+          row.classList.toggle("selected", Number(row.getAttribute("data-dl-q")) === item.quality);
+        });
+      };
+
+      elDlQualityItems.innerHTML = mp4List
+        .map(
+          (m) => `
+          <div class="dl-item-row ${m.quality === chosen.quality ? "selected" : ""}" data-dl-q="${m.quality}" data-probe-url="${esc(apiUrl(m.url))}">
+            <button type="button" class="dl-turbo-trigger" data-turbo-q="${m.quality}" title="12-thread Turbo Download to Chores/Downloads">
+              <span class="dl-item-q">${esc(m.label)}</span>
+              <span class="dl-item-size" data-size-for="${m.quality}">MP4</span>
+            </button>
+            <a class="dl-browser-link" href="${esc(buildBrowserDownloadHref(m.url, titleStr, m.quality))}" title="Standard browser download">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+            </a>
+          </div>`
+        )
+        .join("");
+
+      applySelection(chosen);
+      elDlSplitWrap.classList.add("visible");
+
+      elTurboDownloadBtn.onclick = () => triggerTurboDownload(vid, dlSelectedQuality);
+
+      elDlQualityItems.querySelectorAll("[data-turbo-q]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const q = Number(btn.getAttribute("data-turbo-q"));
+          const match = mp4List.find((m) => m.quality === q);
+          if (match) applySelection(match);
+          elDlQualityMenu.classList.remove("open");
+          triggerTurboDownload(vid, q);
+        });
+      });
+    }
+
+    async function probeDownloadSizesOnce() {
+      if (!state.currentWatchId || dlSizesProbedForVid === state.currentWatchId) return;
+      dlSizesProbedForVid = state.currentWatchId;
+      const vidSnapshot = state.currentWatchId;
+
+      const rows = Array.from(elDlQualityItems.querySelectorAll(".dl-item-row"));
+      await Promise.all(
+        rows.map(async (row) => {
+          const probeUrl = row.getAttribute("data-probe-url");
+          const q = row.getAttribute("data-dl-q");
+          const badge = elDlQualityItems.querySelector(`[data-size-for="${q}"]`);
+          if (!probeUrl || !badge) return;
+          badge.textContent = "...";
+          const ctrl = new AbortController();
+          try {
+            const resp = await fetch(probeUrl, {
+              headers: { Range: "bytes=0-0" },
+              signal: ctrl.signal,
+            });
+            const cr = resp.headers.get("Content-Range") || "";
+            const m = cr.match(/\/(\d+)$/);
+            const total = m ? Number(m[1]) : Number(resp.headers.get("Content-Length") || 0);
+            ctrl.abort();
+            if (state.currentWatchId === vidSnapshot) {
+              badge.textContent = total > 0 ? formatBytes(total) : "MP4";
+            }
+          } catch (_) {
+            if (state.currentWatchId === vidSnapshot && badge.textContent === "...") {
+              badge.textContent = "MP4";
+            }
+          }
+        })
+      );
+    }
+
+    elDlCaretBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const isOpen = elDlQualityMenu.classList.toggle("open");
+      if (isOpen) probeDownloadSizesOnce();
+    });
+
+    function initStreamsAndPlay(streams, titleStr, vid) {
+      const hlsList = streams.hls || [];
+      const mp4List = streams.mp4 || [];
+
+      setupDownloadPicker(mp4List, titleStr, vid);
+
+      const canUseHls = hlsList.length > 0 && window.Hls && window.Hls.isSupported();
+      if (canUseHls) {
+        state.streamEngine = "hls";
+        const pref = hlsList.find((x) => x.quality === 1080) || hlsList[0];
+        state.selectedQuality = pref.quality;
+        loadStreamUrl(pref.url, "hls", 0, true);
+      } else if (mp4List.length > 0) {
+        state.streamEngine = "mp4";
+        const pref = mp4List.find((x) => x.quality === 720) || mp4List[0];
+        state.selectedQuality = pref.quality;
+        loadStreamUrl(pref.url, "mp4", 0, true);
+      } else if (hlsList.length > 0 && elVideo.canPlayType("application/vnd.apple.mpegurl")) {
+        state.streamEngine = "mp4";
+        state.selectedQuality = hlsList[0].quality;
+        loadStreamUrl(hlsList[0].url, "native-hls", 0, true);
+      } else {
+        enableEmbedFallback();
+        return;
+      }
+
+      renderSettingsMenu();
+    }
+
+    function loadStreamUrl(rawStreamPath, engine, resumeTime = 0, autoPlay = true) {
+      const fullUrl = apiUrl(rawStreamPath);
+      elPlayerStage.classList.add("buffering");
+
+      if (state.hlsInstance) {
+        state.hlsInstance.destroy();
+        state.hlsInstance = null;
+      }
+
+      elActiveQualityBadge.textContent = state.selectedQuality
+        ? `${state.selectedQuality}p`
+        : "Auto";
+
+      if (engine === "hls" && window.Hls && window.Hls.isSupported()) {
+        const hls = new window.Hls({ maxBufferLength: 30, enableWorker: true });
+        state.hlsInstance = hls;
+        hls.loadSource(fullUrl);
+        hls.attachMedia(elVideo);
+
+        hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
+          if (resumeTime > 0) elVideo.currentTime = resumeTime;
+          elVideo.playbackRate = state.playbackRate;
+          if (autoPlay && !state.stealthMode) elVideo.play().catch(() => {});
+        });
+
+        hls.on(window.Hls.Events.ERROR, (_, data) => {
+          if (data.fatal) {
+            const mp4s = (state.watchData && state.watchData.streams.mp4) || [];
+            if (mp4s.length > 0 && state.streamEngine !== "mp4") {
+              state.streamEngine = "mp4";
+              const fallback = mp4s.find((m) => m.quality === state.selectedQuality) || mp4s[0];
+              state.selectedQuality = fallback.quality;
+              showPlayerToast("Switched to direct MP4 stream");
+              loadStreamUrl(fallback.url, "mp4", elVideo.currentTime || resumeTime, true);
+              renderSettingsMenu();
+            } else {
+              hls.destroy();
+              enableEmbedFallback();
+            }
+          }
+        });
+      } else {
+        elVideo.src = fullUrl;
+        elVideo.addEventListener("loadedmetadata", function onMeta() {
+          if (resumeTime > 0 && resumeTime < elVideo.duration) {
+            elVideo.currentTime = resumeTime;
+          }
+          elVideo.playbackRate = state.playbackRate;
+          if (autoPlay && !state.stealthMode) elVideo.play().catch(() => {});
+          elVideo.removeEventListener("loadedmetadata", onMeta);
+        });
+      }
+    }
+
+    function enableEmbedFallback() {
+      if (!state.watchData && !state.currentWatchId) return;
+      state.embedMode = true;
+      if (state.hlsInstance) {
+        state.hlsInstance.destroy();
+        state.hlsInstance = null;
+      }
+      elVideo.pause();
+      elVideo.style.display = "none";
+      elPlayerChrome.style.display = "none";
+      elSettingsMenu.classList.remove("open");
+      elPlayerStage.classList.remove("buffering");
+      elEmbedFrame.style.display = "block";
+      elEmbedFrame.src = `https://www.pornhub.com/embed/${encodeURIComponent(state.currentWatchId)}`;
+      elToggleEmbedBtn.textContent = "Use Custom Player";
+    }
+
+    function renderSpeedButtons() {
+      const speeds = [0.5, 0.75, 1, 1.25, 1.5, 2];
+      elSpeedOptions.innerHTML = speeds
+        .map(
+          (sp) =>
+            `<button type="button" class="s-opt ${sp === state.playbackRate ? "selected" : ""}" data-sp="${sp}">${sp}x</button>`
+        )
+        .join("");
+
+      elSpeedOptions.querySelectorAll("[data-sp]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const sp = Number(btn.getAttribute("data-sp"));
+          state.playbackRate = sp;
+          if (!isHolding2x) elVideo.playbackRate = sp;
+          showPlayerToast(`Speed: ${sp}x`);
+          renderSpeedButtons();
+        });
+      });
+    }
+
+    function renderSettingsMenu() {
+      if (!state.watchData) return;
+      const streams = state.watchData.streams;
+      const activeList = state.streamEngine === "hls" ? streams.hls || [] : streams.mp4 || [];
+
+      elQualityOptions.innerHTML = activeList
+        .map(
+          (s) =>
+            `<button type="button" class="s-opt ${s.quality === state.selectedQuality ? "selected" : ""}" data-q="${s.quality}">${esc(s.label)}</button>`
+        )
+        .join("");
+
+      elQualityOptions.querySelectorAll("[data-q]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const q = Number(btn.getAttribute("data-q"));
+          const chosen = activeList.find((x) => x.quality === q);
+          if (!chosen || q === state.selectedQuality) return;
+          const wasPaused = elVideo.paused;
+          const t = elVideo.currentTime || 0;
+          state.selectedQuality = q;
+          loadStreamUrl(chosen.url, state.streamEngine, t, !wasPaused);
+          showPlayerToast(`Quality: ${chosen.label}`);
+          renderSettingsMenu();
+        });
+      });
+
+      renderSpeedButtons();
+
+      const engines = [];
+      if ((streams.hls || []).length > 0 && window.Hls && window.Hls.isSupported()) {
+        engines.push({ id: "hls", label: "HLS Adaptive" });
+      }
+      if ((streams.mp4 || []).length > 0) {
+        engines.push({ id: "mp4", label: "Direct MP4" });
+      }
+      elEngineOptions.innerHTML = engines
+        .map(
+          (en) =>
+            `<button type="button" class="s-opt ${en.id === state.streamEngine ? "selected" : ""}" data-eng="${en.id}">${en.label}</button>`
+        )
+        .join("");
+
+      elEngineOptions.querySelectorAll("[data-eng]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const eng = btn.getAttribute("data-eng");
+          if (eng === state.streamEngine) return;
+          const list = eng === "hls" ? streams.hls : streams.mp4;
+          if (!list || !list.length) return;
+          state.streamEngine = eng;
+          const match = list.find((x) => x.quality === state.selectedQuality) || list[0];
+          state.selectedQuality = match.quality;
+          const wasPaused = elVideo.paused;
+          loadStreamUrl(match.url, eng, elVideo.currentTime || 0, !wasPaused);
+          showPlayerToast(`Engine: ${eng.toUpperCase()}`);
+          renderSettingsMenu();
+        });
+      });
+    }
+
+    function renderHeatmap(hotspots) {
+      if (!hotspots || hotspots.length < 4) {
+        elHeatmapSvg.innerHTML = "";
+        return;
+      }
+      const maxVal = Math.max(...hotspots, 1);
+      const step = 1000 / (hotspots.length - 1);
+      const pts = hotspots.map((val, idx) => {
+        const x = (idx * step).toFixed(1);
+        const norm = Math.max(0.06, val / maxVal);
+        const y = (100 - norm * 92).toFixed(1);
+        return `${x},${y}`;
+      });
+      elHeatmapSvg.innerHTML = `<path d="M 0,100 L ${pts.join(" L ")} L 1000,100 Z" fill="rgba(255, 255, 255, 0.36)" stroke="rgba(255, 144, 0, 0.85)" stroke-width="2"/>`;
+    }
+
+    function setupScrubPreviewSource(scrubMp4Path) {
+      state.scrubReady = false;
+      elScrubCanvas.style.display = "none";
+      if (!scrubMp4Path) return;
+      elScrubVideo.src = apiUrl(scrubMp4Path);
+      elScrubVideo.onloadedmetadata = () => {
+        state.scrubReady = true;
+      };
+      elScrubVideo.onseeked = () => {
+        try {
+          scrubCtx.drawImage(elScrubVideo, 0, 0, 160, 90);
+          elScrubCanvas.style.display = "block";
+        } catch (_) {}
+        state.scrubBusy = false;
+        if (state.scrubPendingTime !== null) {
+          const nextT = state.scrubPendingTime;
+          state.scrubPendingTime = null;
+          requestScrubFrame(nextT);
+        }
+      };
+    }
+
+    function requestScrubFrame(sec) {
+      if (!state.scrubReady) return;
+      if (state.scrubBusy) {
+        state.scrubPendingTime = sec;
+        return;
+      }
+      state.scrubBusy = true;
+      elScrubVideo.currentTime = Math.max(0, Math.min(elScrubVideo.duration || sec, sec));
+    }
+
+    function renderRelatedAndSidebar(related, recommended) {
+      elRelatedCountBadge.textContent = related.length ? `(${related.length})` : "";
+      if (related.length === 0) {
+        elRelatedBelowGrid.innerHTML = `<div style="color:var(--text-muted);">No related videos found.</div>`;
+      } else {
+        elRelatedBelowGrid.innerHTML = related
+          .slice(0, 24)
+          .map((v) => createVideoCardHtml(v, true))
+          .join("");
+        wireGridEvents(elRelatedBelowGrid);
+      }
+
+      const sideItems = recommended.length > 0 ? recommended : related.slice(0, 16);
+      if (sideItems.length === 0) {
+        elSidebarList.innerHTML = `<div style="color:var(--text-muted);">No recommendations available.</div>`;
+      } else {
+        elSidebarList.innerHTML = sideItems
+          .slice(0, 18)
+          .map((v) => {
+            const sub = v.uploader || (v.stars && v.stars[0]) || "Pornhub";
+            const viewsStr = v.views
+              ? `${fmtCompact(v.views)} views`
+              : v.views_text
+              ? `${esc(v.views_text)} views`
+              : "";
+            return `
+              <a class="side-card" href="#watch=${encodeURIComponent(v.id)}" data-side-vid="${esc(v.id)}">
+                <div class="side-thumb">
+                  <img src="${esc(thumbUrl(v.thumbnail))}" data-proxy="${esc(proxyThumbUrl(v.thumbnail))}" alt="${esc(v.title)}" loading="lazy" />
+                  <span class="vcard-duration">${esc(v.duration || "0:00")}</span>
+                </div>
+                <div class="side-meta">
+                  <div class="side-title" title="${esc(v.title)}">${esc(v.title)}</div>
+                  <div class="side-sub">${esc(sub)}</div>
+                  <div class="side-sub">${viewsStr}${v.rating_percent ? ` · ${Math.round(v.rating_percent)}%` : ""}</div>
+                </div>
+              </a>`;
+          })
+          .join("");
+
+        elSidebarList.querySelectorAll("img[data-proxy]").forEach((img) => {
+          img.addEventListener("error", function onErr() {
+            const p = img.getAttribute("data-proxy");
+            if (p && img.src !== p) img.src = p;
+            img.removeEventListener("error", onErr);
+          });
+        });
+
+        elSidebarList.querySelectorAll("[data-side-vid]").forEach((card) => {
+          card.addEventListener("click", (e) => {
+            if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
+            e.preventDefault();
+            openWatchPlayer(card.getAttribute("data-side-vid"));
+          });
+        });
+      }
+    }
+
+    /* Comments */
+    function formatCommentBodyWithTimestamps(text) {
+      const safe = esc(text);
+      return safe.replace(/\b(?:(\d{1,2}):)?([0-5]?\d):([0-5]\d)\b/g, (match, hh, mm, ss) => {
+        const secs = (hh ? parseInt(hh, 10) * 3600 : 0) + parseInt(mm, 10) * 60 + parseInt(ss, 10);
+        return `<button type="button" class="ts-link" data-seek-sec="${secs}">${match}</button>`;
+      });
+    }
+
+    function renderCommentsBlock(cmtObj) {
+      const items = cmtObj.items || [];
+      const total = cmtObj.total || items.length;
+      elCommentsTotalBadge.textContent = `(${fmtNum(total)})`;
+      elJumpCommentsCount.textContent = fmtNum(total);
+      elCommentSortSelect.style.display = cmtObj.can_sort === false ? "none" : "inline-flex";
+      renderCommentItemsList(items);
+    }
+
+    function renderCommentItemsList(items) {
+      if (!items || items.length === 0) {
+        elCommentsList.innerHTML = `<div style="color:var(--text-muted); padding:14px 0;">No public comments on this video.</div>`;
+        return;
+      }
+
+      elCommentsList.innerHTML = items
+        .map((c) => {
+          const up = Number(c.upvotes || 0);
+          const downDisplay = c.downvotes != null ? fmtNum(c.downvotes) : "0";
+          return `
+            <div class="comment-item ${c.is_reply ? "is-reply" : ""}">
+              <div class="comment-head">
+                <span class="comment-author">${esc(c.username)}</span>
+                ${c.is_reply ? `<span class="comment-reply-tag">Reply</span>` : ""}
+                ${c.date ? `<span class="comment-date">${esc(c.date)}</span>` : ""}
+              </div>
+              <div class="comment-body">${formatCommentBodyWithTimestamps(c.text)}</div>
+              <div class="comment-votes">
+                <span class="cvote ${up > 0 ? "has-up" : ""}" title="Upvotes">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>
+                  </svg>
+                  <span>${fmtNum(up)}</span>
+                </span>
+                <span class="cvote" title="${c.downvotes == null ? "Downvote count not publicly exposed by Pornhub" : "Downvotes"}">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/>
+                  </svg>
+                  <span>${downDisplay}</span>
+                </span>
+              </div>
+            </div>`;
+        })
+        .join("");
+
+      elCommentsList.querySelectorAll("[data-seek-sec]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const sec = Number(btn.getAttribute("data-seek-sec") || "0");
+          if (!state.embedMode && isFinite(sec)) {
+            elVideo.currentTime = sec;
+            elVideo.play().catch(() => {});
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }
+        });
+      });
+    }
+
+    elCommentSortSelect.addEventListener("change", async () => {
+      if (!state.currentWatchId || state.isLocalWatch) return;
+      const pop = elCommentSortSelect.value;
+      elCommentsList.innerHTML = `<div style="color:var(--text-muted); padding:14px 0;">Loading comments...</div>`;
+      try {
+        const resp = await fetch(
+          apiUrl(`/api/comments?vkey=${encodeURIComponent(state.currentWatchId)}&popular=${pop}&page=1`)
+        );
+        const data = await resp.json();
+        renderCommentItemsList(data.items || []);
+      } catch (_) {
+        elCommentsList.innerHTML = `<div style="color:var(--text-muted); padding:14px 0;">Failed to load comments.</div>`;
+      }
+    });
+
+    /* ======================================================================
+       PLAYER CONTROLS, HOLD-2X & KEYBOARD SHORTCUTS
+       ====================================================================== */
+    let toastTimer = null;
+    function showPlayerToast(msg) {
+      elPlayerToast.textContent = msg;
+      elPlayerToast.classList.add("visible");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => elPlayerToast.classList.remove("visible"), 1500);
+    }
+
+    function flashBezel(svgMarkup) {
+      elPlayerBezel.innerHTML = svgMarkup;
+      elPlayerBezel.classList.remove("animate");
+      void elPlayerBezel.offsetWidth;
+      elPlayerBezel.classList.add("animate");
+    }
+
+    function togglePlay() {
+      if (state.embedMode) return;
+      if (elVideo.paused || elVideo.ended) {
+        elVideo.play().catch(() => {});
+        flashBezel(`<svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>`);
+      } else {
+        elVideo.pause();
+        flashBezel(`<svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>`);
+      }
+    }
+
+    function seekRelative(delta) {
+      if (state.embedMode || !isFinite(elVideo.duration)) return;
+      elVideo.currentTime = Math.max(0, Math.min(elVideo.duration, elVideo.currentTime + delta));
+      showPlayerToast(`${delta > 0 ? "+" : ""}${delta}s`);
+    }
+
+    function updateTimeAndProgress() {
+      const cur = elVideo.currentTime || 0;
+      const dur = elVideo.duration || 0;
+
+      if (state.abStart !== null && state.abEnd !== null && cur >= state.abEnd) {
+        elVideo.currentTime = state.abStart;
+        return;
+      }
+
+      const pct = dur > 0 ? (cur / dur) * 100 : 0;
+      elScrubPlayed.style.width = `${pct}%`;
+      elScrubThumb.style.left = `${pct}%`;
+
+      if (elVideo.buffered && elVideo.buffered.length > 0 && dur > 0) {
+        const bufEnd = elVideo.buffered.end(elVideo.buffered.length - 1);
+        elScrubBuffered.style.width = `${Math.min(100, (bufEnd / dur) * 100)}%`;
+      }
+
+      if (state.showRemainingTime && dur > 0) {
+        elTimeReadout.textContent = `-${fmtClock(dur - cur)} / ${fmtClock(dur)}`;
+      } else {
+        elTimeReadout.textContent = `${fmtClock(cur)} / ${fmtClock(dur)}`;
+      }
+    }
+
+    function updateAbLoopUI() {
+      const dur = elVideo.duration || 0;
+      if (state.abStart === null) {
+        elAbLoopBtn.textContent = "A-B";
+        elAbLoopBtn.classList.remove("active");
+        elScrubAbRange.style.display = "none";
+      } else if (state.abEnd === null) {
+        elAbLoopBtn.textContent = "A-?";
+        elAbLoopBtn.classList.add("active");
+        if (dur > 0) {
+          elScrubAbRange.style.display = "block";
+          elScrubAbRange.style.left = `${(state.abStart / dur) * 100}%`;
+          elScrubAbRange.style.width = "2px";
+        }
+      } else {
+        elAbLoopBtn.textContent = "A-B ✓";
+        elAbLoopBtn.classList.add("active");
+        if (dur > 0) {
+          const left = (state.abStart / dur) * 100;
+          const width = Math.max(0.5, ((state.abEnd - state.abStart) / dur) * 100);
+          elScrubAbRange.style.display = "block";
+          elScrubAbRange.style.left = `${left}%`;
+          elScrubAbRange.style.width = `${width}%`;
+        }
+      }
+    }
+
+    function startHold2x(source) {
+      if (state.embedMode || state.activeView !== "watch" || state.stealthMode) return;
+      isHolding2x = true;
+      holdSource = source;
+      elVideo.playbackRate = 2.0;
+      if (elVideo.paused) elVideo.play().catch(() => {});
+      elSpeedHoldPill.classList.add("visible");
+    }
+
+    function stopHold2x() {
+      clearTimeout(spaceHoldTimer);
+      clearTimeout(mouseHoldTimer);
+      spaceHoldTimer = null;
+      mouseHoldTimer = null;
+      if (isHolding2x) {
+        isHolding2x = false;
+        holdSource = null;
+        elVideo.playbackRate = state.playbackRate || 1;
+      }
+      elSpeedHoldPill.classList.remove("visible");
+    }
+
+    window.addEventListener("blur", () => {
+      spaceDown = false;
+      stopHold2x();
+    });
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        spaceDown = false;
+        stopHold2x();
+      }
+    });
+
+    elVideo.addEventListener("play", () => {
+      elPlayerStage.classList.remove("paused");
+      elIconPlay.style.display = "none";
+      elIconPause.style.display = "block";
+    });
+
+    elVideo.addEventListener("pause", () => {
+      elPlayerStage.classList.add("paused");
+      elIconPlay.style.display = "block";
+      elIconPause.style.display = "none";
+      elPlayerStage.classList.remove("hide-cursor");
+    });
+
+    elVideo.addEventListener("waiting", () => elPlayerStage.classList.add("buffering"));
+    elVideo.addEventListener("playing", () => elPlayerStage.classList.remove("buffering"));
+    elVideo.addEventListener("canplay", () => elPlayerStage.classList.remove("buffering"));
+    elVideo.addEventListener("timeupdate", updateTimeAndProgress);
+    elVideo.addEventListener("progress", updateTimeAndProgress);
+    elVideo.addEventListener("loadedmetadata", () => {
+      updateTimeAndProgress();
+      updateAbLoopUI();
+      renderScrubMarkerTicks(elVideo.duration);
+    });
+
+    elVideo.addEventListener("ended", () => {
+      if (!state.isLocalWatch && elAutoplayToggle.checked && state.watchData) {
+        const nextCandidate =
+          (state.watchData.recommended_videos || [])[0] ||
+          (state.watchData.related_videos || [])[0];
+        if (nextCandidate) openWatchPlayer(nextCandidate.id);
+      }
+    });
+
+    let clickTimer = null;
+    elVideo.addEventListener("mousedown", (e) => {
+      if (e.button !== 0 || state.embedMode) return;
+      clearTimeout(mouseHoldTimer);
+      mouseHoldTimer = setTimeout(() => {
+        mouseHoldTimer = null;
+        suppressNextVideoClick = true;
+        startHold2x("mouse");
+      }, 240);
+    });
+
+    window.addEventListener("mouseup", () => {
+      if (mouseHoldTimer !== null) {
+        clearTimeout(mouseHoldTimer);
+        mouseHoldTimer = null;
+      }
+      if (isHolding2x && holdSource === "mouse") {
+        stopHold2x();
+      }
+    });
+
+    elVideo.addEventListener("click", (e) => {
+      if (suppressNextVideoClick) {
+        suppressNextVideoClick = false;
+        return;
+      }
+      if (elSettingsMenu.classList.contains("open")) {
+        elSettingsMenu.classList.remove("open");
+        elPlayerStage.classList.remove("menu-open");
+        return;
+      }
+      if (clickTimer) {
+        clearTimeout(clickTimer);
+        clickTimer = null;
+        const rect = elVideo.getBoundingClientRect();
+        const relX = (e.clientX - rect.left) / rect.width;
+        if (relX < 0.3) seekRelative(-10);
+        else if (relX > 0.7) seekRelative(10);
+        else toggleFullscreen();
+      } else {
+        clickTimer = setTimeout(() => {
+          clickTimer = null;
+          togglePlay();
+        }, 210);
+      }
+    });
+
+    let isDraggingScrub = false;
+    function getScrubRatio(e) {
+      const rect = elScrubContainer.getBoundingClientRect();
+      return Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    }
+
+    elScrubContainer.addEventListener("mousemove", (e) => {
+      const dur = elVideo.duration || 0;
+      if (!dur) return;
+      const ratio = getScrubRatio(e);
+      const hoverSec = ratio * dur;
+      const rect = elScrubContainer.getBoundingClientRect();
+      const clampedPx = Math.max(86, Math.min(rect.width - 86, ratio * rect.width));
+      elScrubTooltip.style.left = `${clampedPx}px`;
+      elScrubTimeLabel.textContent = fmtClock(hoverSec);
+
+      // Show nearest active chapter / scene label in tooltip
+      if (state.activeMarkers && state.activeMarkers.length > 0) {
+        let activeScene = null;
+        for (const m of state.activeMarkers) {
+          if (hoverSec >= m.seconds - 4) activeScene = m;
+        }
+        if (activeScene) {
+          elScrubChapterLabel.textContent = activeScene.title;
+          elScrubChapterLabel.style.display = "block";
+        } else {
+          elScrubChapterLabel.style.display = "none";
+        }
+      } else {
+        elScrubChapterLabel.style.display = "none";
+      }
+
+      requestScrubFrame(hoverSec);
+      if (isDraggingScrub) elVideo.currentTime = hoverSec;
+    });
+
+    elScrubContainer.addEventListener("mousedown", (e) => {
+      if (!elVideo.duration) return;
+      isDraggingScrub = true;
+      elVideo.currentTime = getScrubRatio(e) * elVideo.duration;
+    });
+
+    window.addEventListener("mouseup", () => {
+      isDraggingScrub = false;
+    });
+
+    elPlayPauseBtn.addEventListener("click", togglePlay);
+    elSeekBackBtn.addEventListener("click", () => seekRelative(-10));
+    elSeekFwdBtn.addEventListener("click", () => seekRelative(10));
+    elTimeReadout.addEventListener("click", () => {
+      state.showRemainingTime = !state.showRemainingTime;
+      updateTimeAndProgress();
+    });
+
+    elNextVidBtn.addEventListener("click", () => {
+      if (!state.watchData) return;
+      const nxt =
+        (state.watchData.recommended_videos || [])[0] ||
+        (state.watchData.related_videos || [])[0];
+      if (nxt) openWatchPlayer(nxt.id);
+    });
+
+    function syncVolumeUI() {
+      const muted = elVideo.muted || elVideo.volume === 0;
+      elIconVolHigh.style.display = muted ? "none" : "block";
+      elIconVolMuted.style.display = muted ? "block" : "none";
+      elVolSlider.value = elVideo.muted ? 0 : elVideo.volume;
+    }
+
+    elMuteBtn.addEventListener("click", () => {
+      elVideo.muted = !elVideo.muted;
+      syncVolumeUI();
+      showPlayerToast(elVideo.muted ? "Muted" : `Volume ${Math.round(elVideo.volume * 100)}%`);
+    });
+
+    elVolSlider.addEventListener("input", () => {
+      const v = Number(elVolSlider.value);
+      elVideo.volume = v;
+      elVideo.muted = v === 0;
+      syncVolumeUI();
+    });
+
+    elAbLoopBtn.addEventListener("click", () => {
+      const cur = elVideo.currentTime || 0;
+      if (state.abStart === null) {
+        state.abStart = cur;
+        showPlayerToast(`Loop A set at ${fmtClock(cur)}`);
+      } else if (state.abEnd === null) {
+        if (cur > state.abStart + 0.5) {
+          state.abEnd = cur;
+          showPlayerToast(`Loop A-B (${fmtClock(state.abStart)} - ${fmtClock(cur)})`);
+        } else {
+          state.abStart = null;
+          showPlayerToast("A-B Loop cleared");
+        }
+      } else {
+        state.abStart = null;
+        state.abEnd = null;
+        showPlayerToast("A-B Loop cleared");
+      }
+      updateAbLoopUI();
+    });
+
+    elLoopToggleBtn.addEventListener("click", () => {
+      elVideo.loop = !elVideo.loop;
+      elLoopToggleBtn.classList.toggle("active", elVideo.loop);
+      showPlayerToast(elVideo.loop ? "Loop enabled" : "Loop disabled");
+    });
+
+    elScreenshotBtn.addEventListener("click", () => {
+      if (!elVideo.videoWidth) return;
+      try {
+        const c = document.createElement("canvas");
+        c.width = elVideo.videoWidth;
+        c.height = elVideo.videoHeight;
+        c.getContext("2d").drawImage(elVideo, 0, 0, c.width, c.height);
+        const a = document.createElement("a");
+        a.href = c.toDataURL("image/png");
+        a.download = `frame-${state.currentWatchId || "video"}-${Math.floor(elVideo.currentTime)}s.png`;
+        a.click();
+        showPlayerToast("Screenshot saved");
+      } catch (_) {
+        showPlayerToast("Screenshot unavailable");
+      }
+    });
+
+    elSettingsBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const open = elSettingsMenu.classList.toggle("open");
+      elPlayerStage.classList.toggle("menu-open", open);
+    });
+
+    elPipBtn.addEventListener("click", async () => {
+      try {
+        if (document.pictureInPictureElement) await document.exitPictureInPicture();
+        else if (elVideo.requestPictureInPicture) await elVideo.requestPictureInPicture();
+      } catch (_) {}
+    });
+
+    function toggleTheater() {
+      state.theaterMode = !state.theaterMode;
+      elWatchLayout.classList.toggle("theater", state.theaterMode);
+      elTheaterBtn.classList.toggle("active", state.theaterMode);
+      showPlayerToast(state.theaterMode ? "Theater mode" : "Default view");
+    }
+
+    elTheaterBtn.addEventListener("click", toggleTheater);
+
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) elPlayerStage.requestFullscreen().catch(() => {});
+      else document.exitFullscreen().catch(() => {});
+    }
+
+    elFullscreenBtn.addEventListener("click", toggleFullscreen);
+
+    elHelpBtn.addEventListener("click", () => elShortcutsModal.classList.add("open"));
+    elCloseShortcutsBtn.addEventListener("click", () => elShortcutsModal.classList.remove("open"));
+    elShortcutsModal.addEventListener("click", (e) => {
+      if (e.target === elShortcutsModal) elShortcutsModal.classList.remove("open");
+    });
+
+    elPlayerStage.addEventListener("mousemove", () => {
+      elPlayerStage.classList.remove("hide-cursor");
+      clearTimeout(state.cursorTimer);
+      if (!elVideo.paused && !elSettingsMenu.classList.contains("open")) {
+        state.cursorTimer = setTimeout(() => elPlayerStage.classList.add("hide-cursor"), 2800);
+      }
+    });
+
+    [elTopWatchPhBtn, elMainWatchPhBtn].forEach((btn) => {
+      btn.addEventListener("click", () => {
+        if (!elVideo.paused) elVideo.pause();
+      });
+    });
+
+    elToggleEmbedBtn.addEventListener("click", () => {
+      if (state.embedMode) {
+        state.embedMode = false;
+        elEmbedFrame.src = "about:blank";
+        elEmbedFrame.style.display = "none";
+        elVideo.style.display = "block";
+        elPlayerChrome.style.display = "block";
+        elToggleEmbedBtn.textContent = "Use Embed Player";
+        if (state.watchData) {
+          initStreamsAndPlay(
+            state.watchData.streams,
+            state.watchData.video.title,
+            state.watchData.video.id
+          );
+        }
+      } else {
+        enableEmbedFallback();
+      }
+    });
+
+    elJumpCommentsBtn.addEventListener("click", () => {
+      elCommentsSection.scrollIntoView({ behavior: "smooth" });
+    });
+
+    function isTypingTarget(el) {
+      if (!el) return false;
+      const tag = (el.tagName || "").toUpperCase();
+      if (tag === "TEXTAREA" || tag === "SELECT" || el.isContentEditable) return true;
+      if (tag === "INPUT") {
+        const type = (el.type || "text").toLowerCase();
+        return type !== "range" && type !== "checkbox" && type !== "button";
+      }
+      return false;
+    }
+
+    document.addEventListener("keydown", (e) => {
+      if (state.stealthMode || state.activeView !== "watch" || state.embedMode) return;
+      if (isTypingTarget(e.target)) return;
+
+      if (e.code === "Space" || e.key === " ") {
+        e.preventDefault();
+        if (e.repeat || spaceDown) return;
+        spaceDown = true;
+        clearTimeout(spaceHoldTimer);
+        spaceHoldTimer = setTimeout(() => {
+          spaceHoldTimer = null;
+          startHold2x("space");
+        }, 200);
+        return;
+      }
+
+      switch (e.key.toLowerCase()) {
+        case "k":
+          e.preventDefault();
+          togglePlay();
+          break;
+        case "j":
+          e.preventDefault();
+          seekRelative(-10);
+          break;
+        case "l":
+          e.preventDefault();
+          seekRelative(10);
+          break;
+        case "arrowleft":
+          e.preventDefault();
+          seekRelative(-5);
+          break;
+        case "arrowright":
+          e.preventDefault();
+          seekRelative(5);
+          break;
+        case "arrowup":
+          e.preventDefault();
+          elVideo.muted = false;
+          elVideo.volume = Math.min(1, elVideo.volume + 0.05);
+          syncVolumeUI();
+          showPlayerToast(`Volume ${Math.round(elVideo.volume * 100)}%`);
+          break;
+        case "arrowdown":
+          e.preventDefault();
+          elVideo.volume = Math.max(0, elVideo.volume - 0.05);
+          syncVolumeUI();
+          showPlayerToast(`Volume ${Math.round(elVideo.volume * 100)}%`);
+          break;
+        case "m":
+          e.preventDefault();
+          elMuteBtn.click();
+          break;
+        case "f":
+          e.preventDefault();
+          toggleFullscreen();
+          break;
+        case "t":
+          e.preventDefault();
+          toggleTheater();
+          break;
+        case "p":
+          e.preventDefault();
+          elPipBtn.click();
+          break;
+        case "c":
+          e.preventDefault();
+          elCcBtn.click();
+          break;
+        case ",":
+          if (elVideo.paused) {
+            e.preventDefault();
+            elVideo.currentTime = Math.max(0, elVideo.currentTime - 1 / 30);
+          }
+          break;
+        case ".":
+          if (elVideo.paused) {
+            e.preventDefault();
+            elVideo.currentTime = Math.min(elVideo.duration || 0, elVideo.currentTime + 1 / 30);
+          }
+          break;
+        case "?":
+          e.preventDefault();
+          elShortcutsModal.classList.toggle("open");
+          break;
+        case "escape":
+          elShortcutsModal.classList.remove("open");
+          elSettingsMenu.classList.remove("open");
+          break;
+        default:
+          if (/^[0-9]$/.test(e.key) && isFinite(elVideo.duration)) {
+            e.preventDefault();
+            elVideo.currentTime = elVideo.duration * (Number(e.key) / 10);
+            showPlayerToast(`Seek ${Number(e.key) * 10}%`);
+          }
+          break;
+      }
+    });
+
+    document.addEventListener("keyup", (e) => {
+      if (state.stealthMode || state.activeView !== "watch" || state.embedMode) return;
+      if (isTypingTarget(e.target)) return;
+
+      if (e.code === "Space" || e.key === " ") {
+        e.preventDefault();
+        if (!spaceDown) return;
+        spaceDown = false;
+        if (spaceHoldTimer !== null) {
+          clearTimeout(spaceHoldTimer);
+          spaceHoldTimer = null;
+          togglePlay();
+        } else if (isHolding2x && holdSource === "space") {
+          stopHold2x();
+        }
+      }
+    });
+
+    /* ======================================================================
+       NAVIGATION & FORM WIRING
+       ====================================================================== */
+    function runGlobalSearchFromFilter() {
+      const q = elSearchInput.value.trim() || state.filterQuery.trim();
+      if (!q) return;
+      elSearchModeSelect.value = "global";
+      state.filterQuery = "";
+      elSearchInput.value = q;
+      elSearchClearBtn.classList.add("visible");
+      fetchGlobalSearch(q, 1);
+    }
+
+    function resetToHottest() {
+      if (!state.stealthMode) document.title = "PH Explorer";
+      state.filterQuery = "";
+      state.globalQuery = "";
+      state.currentPerformer = null;
+      elSearchInput.value = "";
+      elSearchClearBtn.classList.remove("visible");
+      elSearchModeSelect.value = "filter";
+      switchMainView("browse", true);
+      fetchHottestFeed(1);
+    }
+
+    elSearchModeSelect.addEventListener("change", () => {
+      syncTopbarControls();
+      if (state.searchMode === "filter") {
+        elAcDropdown.classList.remove("open");
+        state.filterQuery = elSearchInput.value;
+        if (state.feedType === "search") fetchHottestFeed(1);
+        else renderBrowseView();
+      } else if (elSearchInput.value.trim().length >= 2) {
+        runAutocomplete(elSearchInput.value);
+      }
+    });
+
+    elSearchInput.addEventListener("input", () => {
+      const val = elSearchInput.value;
+      elSearchClearBtn.classList.toggle("visible", Boolean(val));
+      if (state.searchMode === "filter" && state.activeView === "browse") {
+        state.filterQuery = val;
+        renderBrowseView();
+      }
+      clearTimeout(acTimer);
+      if (val.trim().length >= 2 && (state.searchMode === "global" || state.activeView !== "browse")) {
+        acTimer = setTimeout(() => runAutocomplete(val), 180);
+      } else {
+        elAcDropdown.classList.remove("open");
+      }
+    });
+
+    elSearchInput.addEventListener("keydown", (e) => {
+      if (!elAcDropdown.classList.contains("open")) return;
+      const items = Array.from(elAcDropdown.querySelectorAll(".ac-row"));
+      if (!items.length) return;
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        acFocusIdx = (acFocusIdx + 1) % items.length;
+        items.forEach((el, i) => el.classList.toggle("focused", i === acFocusIdx));
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        acFocusIdx = (acFocusIdx - 1 + items.length) % items.length;
+        items.forEach((el, i) => el.classList.toggle("focused", i === acFocusIdx));
+      } else if (e.key === "Enter" && acFocusIdx >= 0 && items[acFocusIdx]) {
+        e.preventDefault();
+        items[acFocusIdx].click();
+      }
+    });
+
+    elSearchForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      elAcDropdown.classList.remove("open");
+      const val = elSearchInput.value.trim();
+      if (state.activeView !== "browse" || state.searchMode === "global") {
+        elSearchModeSelect.value = "global";
+        fetchGlobalSearch(val, 1);
+      } else {
+        state.filterQuery = val;
+        renderBrowseView();
+      }
+    });
+
+    elSearchClearBtn.addEventListener("click", () => {
+      elSearchInput.value = "";
+      elSearchClearBtn.classList.remove("visible");
+      elAcDropdown.classList.remove("open");
+      state.filterQuery = "";
+      if (state.activeView === "browse") {
+        if (state.feedType === "search") fetchHottestFeed(1);
+        else renderBrowseView();
+      }
+      elSearchInput.focus();
+    });
+
+    elSortSelect.addEventListener("change", () => {
+      state.sortBy = elSortSelect.value;
+      if (state.activeView === "browse") renderBrowseView();
+    });
+
+    elGlobalOrderSelect.addEventListener("change", () => {
+      state.globalOrdering = elGlobalOrderSelect.value;
+      if (state.feedType === "search" && state.globalQuery) {
+        fetchGlobalSearch(state.globalQuery, 1);
+      }
+    });
+
+    elPerformerOrderSelect.addEventListener("change", () => {
+      state.performerOrdering = elPerformerOrderSelect.value;
+      if (state.feedType === "performer" && state.currentPerformer) {
+        openPerformerFeed(
+          { path: state.currentPerformer.path, name: state.currentPerformer.name },
+          1
+        );
+      }
+    });
+
+    elDownloadsNavBtn.addEventListener("click", () => {
+      if (state.activeView === "downloads") {
+        switchMainView("browse", true);
+      } else {
+        switchMainView("downloads", true);
+        refreshDownloadsState();
+      }
+    });
+
+    elDlBackBtn.addEventListener("click", () => switchMainView("browse", true));
+    elPerfExitBtn.addEventListener("click", resetToHottest);
+
+    elRefreshBtn.addEventListener("click", () => {
+      if (state.activeView === "downloads") {
+        refreshDownloadsState();
+      } else if (state.activeView === "watch" && state.currentWatchId && !state.isLocalWatch) {
+        openWatchPlayer(state.currentWatchId, false);
+      } else if (state.feedType === "performer" && state.currentPerformer) {
+        openPerformerFeed(
+          { path: state.currentPerformer.path, name: state.currentPerformer.name },
+          state.page
+        );
+      } else if (state.feedType === "search" && state.globalQuery) {
+        fetchGlobalSearch(state.globalQuery, state.page);
+      } else {
+        fetchHottestFeed(state.page);
+      }
+    });
+
+    document.getElementById("retryConnBtn").addEventListener("click", () => {
+      if (state.activeView === "watch" && state.currentWatchId && !state.isLocalWatch) {
+        openWatchPlayer(state.currentWatchId, false);
+      } else {
+        fetchHottestFeed(state.page);
+      }
+    });
+
+    elClearFilterBtn.addEventListener("click", resetToHottest);
+    elEscalateSearchBtn.addEventListener("click", runGlobalSearchFromFilter);
+    elBrandHome.addEventListener("click", resetToHottest);
+
+    elBackToBrowseBtn.addEventListener("click", () => {
+      if (!state.stealthMode) document.title = "PH Explorer";
+      if (state.isLocalWatch) {
+        switchMainView("downloads", true);
+        refreshDownloadsState();
+      } else {
+        switchMainView("browse", true);
+        window.scrollTo({ top: state.savedScrollY, behavior: "instant" });
+      }
+    });
+
+    elPrevPageBtn.addEventListener("click", () => {
+      if (state.page <= 1) return;
+      const p = state.page - 1;
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      if (state.feedType === "performer" && state.currentPerformer) {
+        openPerformerFeed(
+          { path: state.currentPerformer.path, name: state.currentPerformer.name },
+          p
+        );
+      } else if (state.feedType === "search") {
+        fetchGlobalSearch(state.globalQuery, p);
+      } else {
+        fetchHottestFeed(p);
+      }
+    });
+
+    elNextPageBtn.addEventListener("click", () => {
+      const p = state.page + 1;
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      if (state.feedType === "performer" && state.currentPerformer) {
+        openPerformerFeed(
+          { path: state.currentPerformer.path, name: state.currentPerformer.name },
+          p
+        );
+      } else if (state.feedType === "search") {
+        fetchGlobalSearch(state.globalQuery, p);
+      } else {
+        fetchHottestFeed(p);
+      }
+    });
+
+    window.addEventListener("popstate", () => {
+      const m = window.location.hash.match(/^#watch=(.+)$/);
+      if (m) {
+        openWatchPlayer(decodeURIComponent(m[1]), false);
+      } else if (state.activeView === "watch") {
+        if (!state.stealthMode) document.title = "PH Explorer";
+        switchMainView("browse", false);
+      }
+    });
+
+    // Boot
+    (function init() {
+      renderCountryMenu();
+      refreshDownloadsState();
+      const m = window.location.hash.match(/^#watch=(.+)$/);
+      if (m) {
+        fetchHottestFeed(1);
+        openWatchPlayer(decodeURIComponent(m[1]), false);
+      } else {
+        fetchHottestFeed(1);
+      }
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+# Personal downloaded videos & index (never upload!)
+Downloads/
+
+# Local AI subtitle binaries & models (~260 MB; downloaded via setup_ai.py)
+tools/
+
+# Python bytecode & caches
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+
+# OS & editor files
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log
