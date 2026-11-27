@@ -10,8 +10,8 @@ val rootServerPy = file("../../server.py")
 val rootIndexHtml = file("../../index.html")
 if (rootServerPy.exists() && rootIndexHtml.exists()) {
     pySrcDir.mkdirs()
-    rootServerPy.copyTo(File(pySrcDir, "server.py"), overwrite = true)
-    rootIndexHtml.copyTo(File(pySrcDir, "index.html"), overwrite = true)
+    rootServerPy.copyTo(file("src/main/python/server.py"), overwrite = true)
+    rootIndexHtml.copyTo(file("src/main/python/index.html"), overwrite = true)
 }
 
 android {
