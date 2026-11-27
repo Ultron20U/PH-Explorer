@@ -41,7 +41,8 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
 PORT = int(os.environ.get("PORT", "8765"))
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DOWNLOADS_DIR = os.path.join(BASE_DIR, "Downloads")
+DATA_DIR = os.environ.get("PHE_DATA_DIR") or BASE_DIR
+DOWNLOADS_DIR = os.path.join(DATA_DIR, "Downloads")
 DOWNLOADS_INDEX_PATH = os.path.join(DOWNLOADS_DIR, "downloads_index.json")
 
 USER_AGENT = (
@@ -1498,7 +1499,7 @@ def delete_downloaded_file(filename):
 # ============================================================================
 # SUBTITLES: PORNHUB CLOSED CAPTIONS + LOCAL WHISPER AI (whisper.cpp)
 # ============================================================================
-TOOLS_DIR = os.path.join(BASE_DIR, "tools")
+TOOLS_DIR = os.path.join(DATA_DIR, "tools")
 FFMPEG_EXE = os.path.join(TOOLS_DIR, "ffmpeg.exe" if os.name == "nt" else "ffmpeg")
 WHISPER_CLI = os.path.join(TOOLS_DIR, "whisper", "whisper-cli.exe" if os.name == "nt" else "whisper-cli")
 WHISPER_MODELS = {
@@ -2206,6 +2207,31 @@ class ExclusiveThreadingHTTPServer(ThreadingHTTPServer):
         if os.name == "nt" and hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
             self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
         super().server_bind()
+
+
+_EMBEDDED_SERVER = None
+_EMBEDDED_LOCK = threading.Lock()
+
+
+def start_embedded_server(data_dir="", port=8765):
+    """Start the local HTTP server on a background daemon thread (used by Android APK)."""
+    global _EMBEDDED_SERVER, PORT, DATA_DIR, DOWNLOADS_DIR, DOWNLOADS_INDEX_PATH, TOOLS_DIR
+    with _EMBEDDED_LOCK:
+        if _EMBEDDED_SERVER is not None:
+            return PORT
+        PORT = int(port)
+        if data_dir:
+            os.environ["PHE_DATA_DIR"] = str(data_dir)
+            DATA_DIR = str(data_dir)
+            DOWNLOADS_DIR = os.path.join(DATA_DIR, "Downloads")
+            DOWNLOADS_INDEX_PATH = os.path.join(DOWNLOADS_DIR, "downloads_index.json")
+            TOOLS_DIR = os.path.join(DATA_DIR, "tools")
+        os.makedirs(DOWNLOADS_DIR, exist_ok=True)
+        srv = ExclusiveThreadingHTTPServer(("127.0.0.1", PORT), AppHandler)
+        t = threading.Thread(target=srv.serve_forever, name="PHExplorerServer", daemon=True)
+        t.start()
+        _EMBEDDED_SERVER = srv
+        return PORT
 
 
 if __name__ == "__main__":

@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f0f0f" />
   <title>PH Explorer</title>
   <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
   <style>
@@ -1168,12 +1169,40 @@
 
     .player-stage:hover .player-chrome,
     .player-stage.paused .player-chrome,
-    .player-stage.menu-open .player-chrome {
+    .player-stage.menu-open .player-chrome,
+    .player-stage.touch-controls .player-chrome {
       opacity: 1;
     }
 
     .player-stage.hide-cursor .player-chrome {
       opacity: 0;
+    }
+
+    .player-stage {
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+      user-select: none;
+    }
+
+    .player-stage.pseudo-fullscreen {
+      position: fixed !important;
+      inset: 0 !important;
+      width: 100vw !important;
+      height: 100dvh !important;
+      max-height: none !important;
+      aspect-ratio: auto !important;
+      z-index: 99999 !important;
+      border-radius: 0 !important;
+      border: none !important;
+      background: #000 !important;
+    }
+
+    .player-stage.pseudo-fullscreen .sub-text {
+      font-size: clamp(18px, 2.8vw, 34px);
+    }
+
+    .scrub-container {
+      touch-action: none;
     }
 
     /* Subtitles overlay (Pornhub CC + local Whisper AI) */
@@ -2161,19 +2190,69 @@
     @media (max-width: 780px) {
       .topbar {
         height: auto;
-        padding: 10px 14px;
+        padding: 10px 12px;
         flex-wrap: wrap;
+        gap: 8px;
       }
       .topbar-center {
         order: 3;
         max-width: none;
         width: 100%;
       }
+      .topbar-right {
+        gap: 6px;
+      }
+      #downloadsNavBtn span:not(.dl-nav-badge) {
+        display: none;
+      }
       .page-wrap {
-        padding: 14px 14px 40px;
+        padding: 12px 12px 44px;
       }
       .video-grid {
         grid-template-columns: 1fr;
+      }
+      .watch-top-nav,
+      .watch-primary-bar,
+      .watch-actions {
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .scrub-container {
+        height: 22px;
+      }
+    }
+
+    @media (max-width: 580px) {
+      #abLoopBtn,
+      #loopToggleBtn,
+      #screenshotBtn,
+      #theaterBtn,
+      #helpBtn {
+        display: none;
+      }
+      .time-readout {
+        padding: 0 4px;
+        font-size: 11px;
+      }
+      .pbtn {
+        min-width: 28px;
+        padding: 0 5px;
+      }
+    }
+
+    @media (hover: none) and (pointer: coarse) {
+      .player-stage:not(.paused):not(.menu-open):not(.touch-controls) .player-chrome {
+        opacity: 0;
+        pointer-events: none;
+      }
+      .player-stage.touch-controls .player-chrome,
+      .player-stage.paused .player-chrome,
+      .player-stage.menu-open .player-chrome {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      .player-stage:not(.paused):not(.menu-open):not(.touch-controls) .sub-overlay {
+        bottom: 18px;
       }
     }
   </style>
@@ -2273,6 +2352,12 @@
           </svg>
           <span>Downloads</span>
           <span class="dl-nav-badge" id="dlNavBadge">0</span>
+        </button>
+
+        <button type="button" class="ui-btn" id="stealthQuickBtn" title="Checklist Mode (Double-Esc)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+          </svg>
         </button>
 
         <button type="button" class="ui-btn" id="refreshBtn" title="Reload">
@@ -3273,6 +3358,9 @@
         state.savedTitleBeforeStealth = document.title;
         stopHold2x();
         if (!elVideo.paused) elVideo.pause();
+        if (elPlayerStage.classList.contains("pseudo-fullscreen")) {
+          setPseudoFullscreen(false);
+        }
         if (document.fullscreenElement) {
           document.exitFullscreen().catch(() => {});
         }
@@ -3284,6 +3372,20 @@
         document.title = state.savedTitleBeforeStealth || "PH Explorer";
       }
     }
+
+    document.getElementById("stealthQuickBtn").addEventListener("click", toggleStealthMode);
+
+    // Double-tap / double-click the Chores heading to exit Stealth Mode on phones & tablets
+    let lastChoreHeaderTap = 0;
+    document.querySelector("#choresStealthApp .chores-top h1").addEventListener("click", () => {
+      const now = performance.now();
+      if (now - lastChoreHeaderTap < 420) {
+        lastChoreHeaderTap = 0;
+        if (state.stealthMode) toggleStealthMode();
+        return;
+      }
+      lastChoreHeaderTap = now;
+    });
 
     let lastEscTime = 0;
     window.addEventListener(
@@ -5186,8 +5288,168 @@
       elPlayerStage.classList.toggle("menu-open", open);
     });
 
+    // Mobile touch gestures: Touch-and-hold 2x speed, single-tap controls toggle, double-tap +/-10s seek
+    let touchHoldTimer = null;
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchMoved = false;
+    let lastTouchTapTime = 0;
+    let lastTouchTapX = 0;
+    let singleTapTimer = null;
+    let touchControlsTimer = null;
+
+    function showTouchControlsTemporarily() {
+      elPlayerStage.classList.add("touch-controls");
+      clearTimeout(touchControlsTimer);
+      if (!elVideo.paused && !elSettingsMenu.classList.contains("open")) {
+        touchControlsTimer = setTimeout(() => {
+          elPlayerStage.classList.remove("touch-controls");
+        }, 3200);
+      }
+    }
+
+    elVideo.addEventListener(
+      "touchstart",
+      (e) => {
+        if (state.embedMode || e.touches.length !== 1) return;
+        const t = e.touches[0];
+        touchStartX = t.clientX;
+        touchStartY = t.clientY;
+        touchMoved = false;
+        clearTimeout(touchHoldTimer);
+        touchHoldTimer = setTimeout(() => {
+          touchHoldTimer = null;
+          suppressNextVideoClick = true;
+          if (navigator.vibrate) {
+            try { navigator.vibrate(15); } catch (_) {}
+          }
+          startHold2x("touch");
+        }, 250);
+      },
+      { passive: true }
+    );
+
+    elVideo.addEventListener(
+      "touchmove",
+      (e) => {
+        if (!e.touches.length) return;
+        const dx = Math.abs(e.touches[0].clientX - touchStartX);
+        const dy = Math.abs(e.touches[0].clientY - touchStartY);
+        if (dx > 14 || dy > 14) {
+          touchMoved = true;
+          if (touchHoldTimer !== null) {
+            clearTimeout(touchHoldTimer);
+            touchHoldTimer = null;
+          }
+        }
+      },
+      { passive: true }
+    );
+
+    function handleVideoTouchEnd(e) {
+      if (touchHoldTimer !== null) {
+        clearTimeout(touchHoldTimer);
+        touchHoldTimer = null;
+      }
+      if (isHolding2x && holdSource === "touch") {
+        stopHold2x();
+        suppressNextVideoClick = true;
+        if (e.cancelable) e.preventDefault();
+        return;
+      }
+      if (touchMoved || state.embedMode) return;
+
+      suppressNextVideoClick = true;
+      if (e.cancelable) e.preventDefault();
+
+      if (elSettingsMenu.classList.contains("open")) {
+        elSettingsMenu.classList.remove("open");
+        elPlayerStage.classList.remove("menu-open");
+        return;
+      }
+
+      const now = performance.now();
+      const rect = elVideo.getBoundingClientRect();
+      const relX = rect.width > 0 ? (touchStartX - rect.left) / rect.width : 0.5;
+
+      if (now - lastTouchTapTime < 280 && Math.abs(touchStartX - lastTouchTapX) < 80) {
+        clearTimeout(singleTapTimer);
+        singleTapTimer = null;
+        lastTouchTapTime = 0;
+        if (relX < 0.35) seekRelative(-10);
+        else if (relX > 0.65) seekRelative(10);
+        else togglePlay();
+        showTouchControlsTemporarily();
+      } else {
+        lastTouchTapTime = now;
+        lastTouchTapX = touchStartX;
+        clearTimeout(singleTapTimer);
+        singleTapTimer = setTimeout(() => {
+          singleTapTimer = null;
+          if (elPlayerStage.classList.contains("touch-controls")) {
+            elPlayerStage.classList.remove("touch-controls");
+            clearTimeout(touchControlsTimer);
+          } else {
+            showTouchControlsTemporarily();
+          }
+        }, 260);
+      }
+    }
+
+    elVideo.addEventListener("touchend", handleVideoTouchEnd, { passive: false });
+    elVideo.addEventListener("touchcancel", () => {
+      clearTimeout(touchHoldTimer);
+      touchHoldTimer = null;
+      if (isHolding2x && holdSource === "touch") stopHold2x();
+    });
+
+    // Touch scrubbing on timeline
+    function getTouchScrubRatio(touch) {
+      const rect = elScrubContainer.getBoundingClientRect();
+      return Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width));
+    }
+
+    elScrubContainer.addEventListener(
+      "touchstart",
+      (e) => {
+        if (!elVideo.duration || !e.touches.length) return;
+        isDraggingScrub = true;
+        showTouchControlsTemporarily();
+        const ratio = getTouchScrubRatio(e.touches[0]);
+        elVideo.currentTime = ratio * elVideo.duration;
+      },
+      { passive: true }
+    );
+
+    elScrubContainer.addEventListener(
+      "touchmove",
+      (e) => {
+        if (!isDraggingScrub || !elVideo.duration || !e.touches.length) return;
+        if (e.cancelable) e.preventDefault();
+        const touch = e.touches[0];
+        const ratio = getTouchScrubRatio(touch);
+        const hoverSec = ratio * elVideo.duration;
+        const rect = elScrubContainer.getBoundingClientRect();
+        const clampedPx = Math.max(86, Math.min(rect.width - 86, ratio * rect.width));
+        elScrubTooltip.style.left = `${clampedPx}px`;
+        elScrubTimeLabel.textContent = fmtClock(hoverSec);
+        requestScrubFrame(hoverSec);
+        elVideo.currentTime = hoverSec;
+        showTouchControlsTemporarily();
+      },
+      { passive: false }
+    );
+
+    elScrubContainer.addEventListener("touchend", () => {
+      isDraggingScrub = false;
+    });
+
     elPipBtn.addEventListener("click", async () => {
       try {
+        if (window.AndroidBridge && typeof window.AndroidBridge.enterPip === "function") {
+          window.AndroidBridge.enterPip();
+          return;
+        }
         if (document.pictureInPictureElement) await document.exitPictureInPicture();
         else if (elVideo.requestPictureInPicture) await elVideo.requestPictureInPicture();
       } catch (_) {}
@@ -5202,10 +5464,68 @@
 
     elTheaterBtn.addEventListener("click", toggleTheater);
 
-    function toggleFullscreen() {
-      if (!document.fullscreenElement) elPlayerStage.requestFullscreen().catch(() => {});
-      else document.exitFullscreen().catch(() => {});
+    function setPseudoFullscreen(enable) {
+      elPlayerStage.classList.toggle("pseudo-fullscreen", enable);
+      document.body.style.overflow = enable ? "hidden" : "";
+      if (window.AndroidBridge && typeof window.AndroidBridge.setFullscreenLandscape === "function") {
+        try { window.AndroidBridge.setFullscreenLandscape(enable); } catch (_) {}
+      }
     }
+
+    function toggleFullscreen() {
+      if (window.AndroidBridge) {
+        const nextFs = !elPlayerStage.classList.contains("pseudo-fullscreen");
+        setPseudoFullscreen(nextFs);
+        return;
+      }
+      if (elPlayerStage.classList.contains("pseudo-fullscreen")) {
+        setPseudoFullscreen(false);
+        return;
+      }
+      if (!document.fullscreenElement) {
+        elPlayerStage.requestFullscreen().catch(() => setPseudoFullscreen(true));
+      } else {
+        document.exitFullscreen().catch(() => {});
+      }
+    }
+
+    document.addEventListener("fullscreenchange", () => {
+      if (window.AndroidBridge && typeof window.AndroidBridge.setFullscreenLandscape === "function") {
+        try { window.AndroidBridge.setFullscreenLandscape(!!document.fullscreenElement); } catch (_) {}
+      }
+    });
+
+    // Android hardware Back-button navigation handler
+    window.__handleAndroidBack = function () {
+      if (state.stealthMode) return "exit";
+      if (elShortcutsModal.classList.contains("open")) {
+        elShortcutsModal.classList.remove("open");
+        return "handled";
+      }
+      if (elSettingsMenu.classList.contains("open")) {
+        elSettingsMenu.classList.remove("open");
+        elPlayerStage.classList.remove("menu-open");
+        return "handled";
+      }
+      if (elPlayerStage.classList.contains("pseudo-fullscreen")) {
+        setPseudoFullscreen(false);
+        return "handled";
+      }
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+        return "handled";
+      }
+      if (state.activeView === "watch" || state.activeView === "downloads") {
+        destroyActiveMedia();
+        switchMainView("browse", true);
+        return "handled";
+      }
+      if (state.feedType === "performer" || state.feedType === "search") {
+        resetToHottest();
+        return "handled";
+      }
+      return "exit";
+    };
 
     elFullscreenBtn.addEventListener("click", toggleFullscreen);
 

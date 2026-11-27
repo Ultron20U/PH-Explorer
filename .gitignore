@@ -16,3 +16,16 @@ venv/
 Thumbs.db
 desktop.ini
 *.log
+
+# Android build outputs & generated Python bundle copies
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/app/src/main/python/server.py
+android/app/src/main/python/index.html
+*.apk
+*.aab
+*.jks
+*.keystore
+

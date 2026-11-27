@@ -4,24 +4,24 @@
 
 <br />
 
-[![Python 3.8+](https://img.shields.io/badge/Python-3.8%2B%20(Stdlib%20Only)-3776AB?style=for-the-badge&logo=python&logoColor=white)](#quick-start)
-[![Frontend](https://img.shields.io/badge/Frontend-Single--File%20Vanilla%20JS-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)](#architecture)
-[![Local AI](https://img.shields.io/badge/Subtitles-Whisper.cpp%20Offline%20AI-FF9900?style=for-the-badge)](#hybrid-subtitle-engine-official--local-ai)
-[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-2ea44f?style=for-the-badge)](#quick-start)
+[![Android APK](https://img.shields.io/badge/Android%20APK-Download%20v1.1.0-3DDC84?style=for-the-badge&logo=android&logoColor=black)](https://github.com/Ultron20U/PH-Explorer/releases/latest/download/PH-Explorer-v1.1.0-android.apk)
+[![Python 3.8+](https://img.shields.io/badge/Python-3.8%2B%20(Stdlib%20Only)-3776AB?style=for-the-badge&logo=python&logoColor=white)](#quick-start-desktop)
+[![Local AI](https://img.shields.io/badge/Subtitles-Whisper.cpp%20Offline%20AI-FF9900?style=for-the-badge)](#2-hybrid-subtitle-engine-official--local-ai)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux%20%7C%20Android-2ea44f?style=for-the-badge)](#android-native-apk)
 [![License: MIT](https://img.shields.io/badge/License-MIT-white?style=for-the-badge)](LICENSE)
 
 <p align="center">
-  <b>A fast, zero-bloat, self-hosted alternative web frontend &amp; local media workstation.</b><br />
-  Built inside <b>two standalone core files</b> (<code>server.py</code> + <code>index.html</code>) — no <code>npm</code>, no frameworks, no accounts, and zero third-party ad or tracker scripts ever touch your browser.
+  <b>A fast, zero-bloat, self-hosted alternative frontend &amp; local media player — now for Desktop <i>and</i> Native Android.</b><br />
+  Powered by an embedded zero-dependency Python proxy — no <code>npm</code>, no accounts, and zero third-party ad or tracker scripts ever touch your device.
 </p>
 
 <p align="center">
+  <a href="#android-native-apk"><b>📱 Download Android APK</b></a> •
   <a href="#why-ph-explorer">Overview</a> •
   <a href="#feature-breakdown">Features</a> •
-  <a href="#hybrid-subtitle-engine-official--local-ai">Local AI Subtitles</a> •
-  <a href="#architecture">Architecture</a> •
-  <a href="#quick-start">Quick Start</a> •
-  <a href="#keyboard-shortcuts--player-controls">Shortcuts</a> •
+  <a href="#2-hybrid-subtitle-engine-official--local-ai">AI Subtitles</a> •
+  <a href="#quick-start-desktop">Desktop Setup</a> •
+  <a href="#keyboard-shortcuts--touch-gestures">Controls</a> •
   <a href="#local-api-reference">API</a>
 </p>
 
@@ -106,7 +106,26 @@ flowchart LR
 
 ---
 
-## Quick Start
+## Android Native APK
+
+Run the full PH-Explorer experience natively on any Android phone or tablet (Android 8.0+, `arm64-v8a` / `armeabi-v7a` / `x86_64`) — no PC required!
+
+<p align="center">
+  <a href="https://github.com/Ultron20U/PH-Explorer/releases/latest/download/PH-Explorer-v1.1.0-android.apk">
+    <img src="https://img.shields.io/badge/⬇%20Download%20Direct%20APK-PH--Explorer--v1.1.0--android.apk-3DDC84?style=for-the-badge&logo=android&logoColor=black" alt="Download Android APK" />
+  </a>
+</p>
+
+- **Real Embedded Python Proxy (`Chaquopy`)** — Boots the exact same `server.py` locally inside the Android app on `127.0.0.1:8765`, blocking all ads, popups, and trackers before they ever reach the player.
+- **Mobile Touch Gestures** — **Touch-and-hold** anywhere on the video for instant **`2×` speed** (with haptic feedback), **double-tap left/right** to seek **`±10s`**, drag your finger along the scrubber for live frame previews, and use Android's hardware **Back** gesture naturally.
+- **Immersive Landscape Fullscreen & Native PiP** — Tapping Fullscreen rotates automatically into edge-to-edge immersive landscape while keeping custom heatmaps, `2×` speed badge, and `CC` subtitles intact; tapping **PiP** floats the video over other Android apps.
+- **Turbo Downloader & Offline Library on Phone** — Multi-threaded downloads save to app storage with zero invasive storage permissions and play offline anytime.
+- **Mobile Boss-Key Stealth Mode** — Tap the discreet **Checklist** icon in the top bar to switch instantly to the *Household Chores* screen; **double-tap** the *Household Chores* title to return.
+- *(Note: Official & hidden closed captions (`CC`) work out of the box on Android; heavy CPU `whisper.cpp` AI transcription is a Desktop-only feature.)*
+
+---
+
+## Quick Start (Desktop)
 
 ### Prerequisites
 - **Python 3.8 or newer** ([python.org](https://www.python.org/downloads/)) — *no `pip` packages required to run the core app!*
@@ -147,7 +166,18 @@ Once installed:
 
 ---
 
-## Keyboard Shortcuts & Player Controls
+## Keyboard Shortcuts & Touch Gestures
+
+### Mobile / Touchscreen Gestures
+| Gesture | Action |
+| :--- | :--- |
+| **Touch & Hold on Video** | **Temporary `2×` Speed Boost** while held |
+| **Single-Tap on Video** | Show / Hide Player Controls |
+| **Double-Tap Left / Right / Center** | Rewind `-10s` / Skip `+10s` / Play-Pause |
+| **Drag Timeline Bar** | Frame-accurate scrubbing with live preview |
+| **Tap Top Checklist Icon** | Enter **"Chores" Boss-Key Stealth Mode** *(double-tap Chores title to exit)* |
+
+### Desktop Keyboard Shortcuts
 
 | Shortcut | Action |
 | :--- | :--- |
