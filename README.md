@@ -5,6 +5,8 @@
 <br />
 
 [![Android APK](https://img.shields.io/badge/Android%20APK-Download%20v1.1.0-3DDC84?style=for-the-badge&logo=android&logoColor=black)](https://github.com/Ultron20U/PH-Explorer/releases/latest/download/PH-Explorer-v1.1.0-android.apk)
+[![APK Downloads](https://img.shields.io/github/downloads/Ultron20U/PH-Explorer/total?style=for-the-badge&logo=github&label=APK%20Downloads&color=FF9900)](https://github.com/Ultron20U/PH-Explorer/releases/latest)
+[![GitHub Stars](https://img.shields.io/github/stars/Ultron20U/PH-Explorer?style=for-the-badge&logo=github&color=FFB84D)](https://github.com/Ultron20U/PH-Explorer/stargazers)
 [![Python 3.8+](https://img.shields.io/badge/Python-3.8%2B%20(Stdlib%20Only)-3776AB?style=for-the-badge&logo=python&logoColor=white)](#quick-start-desktop)
 [![Local AI](https://img.shields.io/badge/Subtitles-Whisper.cpp%20Offline%20AI-FF9900?style=for-the-badge)](#2-hybrid-subtitle-engine-official--local-ai)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux%20%7C%20Android-2ea44f?style=for-the-badge)](#android-native-apk)
