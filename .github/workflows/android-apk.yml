@@ -1,0 +1,101 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'android/**'
+      - 'server.py'
+      - 'index.html'
+      - '.github/workflows/android-apk.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Python 3.11 for Chaquopy
+        id: py
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Set up Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Bundle server.py and index.html into Android Python assets
+        run: |
+          mkdir -p android/app/src/main/python
+          cp server.py android/app/src/main/python/server.py
+          cp index.html android/app/src/main/python/index.html
+
+      - name: Generate release signing keystore & build signed APK
+        working-directory: android
+        env:
+          PHE_BUILD_PYTHON: ${{ steps.py.outputs.python-path }}
+          PHE_KEYSTORE_FILE: ${{ runner.temp }}/phexplorer-release.jks
+          PHE_KEYSTORE_PASSWORD: phexplorer-open-source-key
+          PHE_KEY_ALIAS: phexplorer
+          PHE_KEY_PASSWORD: phexplorer-open-source-key
+        run: |
+          if [ -n "$ANDROID_HOME" ] && [ -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
+            yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null 2>&1 || true
+          fi
+          keytool -genkeypair -v \
+            -keystore "$PHE_KEYSTORE_FILE" \
+            -alias "$PHE_KEY_ALIAS" \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass "$PHE_KEYSTORE_PASSWORD" \
+            -keypass "$PHE_KEY_PASSWORD" \
+            -dname "CN=PH-Explorer, OU=OpenSource, O=PH-Explorer, L=Local, S=NA, C=US"
+          gradle assembleRelease --no-daemon --stacktrace
+          cp app/build/outputs/apk/release/app-release.apk ../PH-Explorer-v1.1.0-android.apk
+          ls -lh ../PH-Explorer-v1.1.0-android.apk
+
+      - name: Upload APK build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PH-Explorer-Android-APK
+          path: PH-Explorer-v1.1.0-android.apk
+
+      - name: Publish v1.1.0 Release with downloadable Android APK
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cat << 'EOF' > /tmp/release_notes.md
+          ### PH-Explorer v1.1.0 — Native Android APK + Desktop Multi-Platform Release
+
+          #### 📱 Download for Android
+          - Tap **`PH-Explorer-v1.1.0-android.apk`** below on your Android phone or tablet (Android 8.0+) to download and install directly — no Play Store needed!
+          - **Embedded Python 3.11 Proxy (`Chaquopy`)**: Runs `server.py` locally inside the app on `127.0.0.1:8765` with zero ads, popups, or trackers.
+          - **Mobile Touch Controls**: **Touch-and-Hold** video for `2×` speed, **Double-Tap Left/Right** for `±10s` seek, smooth timeline finger-scrubbing with frame previews, auto-landscape fullscreen, and native **Android Picture-in-Picture (PiP)**.
+          - **Turbo Downloader & Offline Library**: Parallel multi-connection MP4 downloads + offline playback right on your phone.
+          - **Official Subtitles (`CC`) & Chores Stealth Mode**: Instant closed captions + top-bar Checklist boss-key mode (double-tap the *Household Chores* title to return).
+
+          #### 💻 Download for Windows / macOS / Linux
+          - Download **`Source code (zip)`** below (or `git clone`), run `start_server.bat` / `./start.sh`, and optionally run `setup_ai.py` for offline CPU Whisper AI speech-to-text subtitles.
+          EOF
+          sed -i 's/^          //' /tmp/release_notes.md
+
+          if gh release view v1.1.0 >/dev/null 2>&1; then
+            gh release upload v1.1.0 PH-Explorer-v1.1.0-android.apk --clobber
+          else
+            gh release create v1.1.0 PH-Explorer-v1.1.0-android.apk \
+              --target "${{ github.sha }}" \
+              --title "v1.1.0 — Native Android APK + Desktop Release" \
+              --notes-file /tmp/release_notes.md
+          fi
