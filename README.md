@@ -165,7 +165,7 @@ Official closed captions work immediately with **zero extra setup**. To also ena
 
 Once installed:
 1. Click **`CC`** in the bottom player bar (or press <kbd>C</kbd>).
-2. Open the **Settings Badge (`HD` / `1080p`)** in the player bar to switch between **`Off`**, **`Pornhub`**, **`AI Fast`** (`tiny.en`), and **`AI Accurate`** (`base.en`).
+2. Open the **Settings Badge (`HD` / `1080p`)** in the player bar to switch between **`Off`**, **`Pornhub`**, **`EN Fast`** (`tiny.en`), **`EN Accurate`**  (`base.en`),  **`Same Lang`**,  **`Any -> EN`**.
 
 ---
 
