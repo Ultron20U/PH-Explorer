@@ -175,6 +175,23 @@ def sanitize_profile_path(raw_path):
     return f"/{m.group(1)}/{m.group(2)}" if m else ""
 
 
+def extract_verified_badge(fragment):
+    """Detect Pornhub verified / content-partner / model badges in an HTML snippet."""
+    if not fragment:
+        return False, ""
+    m = re.search(
+        r'<(?:span|i|div)[^>]*class="[^"]*(?:verified-icon|verified-user|producer-icon|channel-icon|\bverified\b)[^"]*"[^>]*>',
+        fragment,
+        re.I,
+    )
+    if not m:
+        return False, ""
+    tag = m.group(0)
+    t_m = re.search(r'data-title="([^"]+)"', tag, re.I) or re.search(r'title="([^"]+)"', tag, re.I)
+    label = html_lib.unescape(t_m.group(1)).strip() if t_m else "Verified"
+    return True, label
+
+
 def normalize_api_video(v, listing_hint=None):
     """Normalize a Pornhub Webmasters video object + optional HTML listing hints."""
     listing_hint = listing_hint or {}
@@ -248,6 +265,9 @@ def normalize_api_video(v, listing_hint=None):
         "star_links": listing_hint.get("star_links") or [],
         "uploader": listing_hint.get("uploader") or "",
         "uploader_path": listing_hint.get("uploader_path") or "",
+        "uploader_avatar": listing_hint.get("uploader_avatar") or "",
+        "uploader_verified": bool(listing_hint.get("uploader_verified")),
+        "uploader_badge": listing_hint.get("uploader_badge") or "",
         "tags": tags,
         "categories": categories,
         "likes": likes,
@@ -289,12 +309,15 @@ def extract_listing_items_from_ul(ul_html):
 
         uploader = ""
         uploader_path = ""
+        uploader_verified = False
+        uploader_badge = ""
         if user_m:
             u_inner = user_m.group(1)
             uploader = html_lib.unescape(re.sub(r"<[^>]+>", "", u_inner)).strip()
             href_m = re.search(r'href="([^"]+)"', u_inner)
             if href_m:
                 uploader_path = sanitize_profile_path(href_m.group(1))
+            uploader_verified, uploader_badge = extract_verified_badge(u_inner)
 
         items.append(
             {
@@ -305,6 +328,8 @@ def extract_listing_items_from_ul(ul_html):
                 "duration": dur_m.group(1).strip() if dur_m else "",
                 "uploader": uploader,
                 "uploader_path": uploader_path,
+                "uploader_verified": uploader_verified,
+                "uploader_badge": uploader_badge,
                 "views_text": views_m.group(1).strip() if views_m else "",
                 "added": added_m.group(1).strip() if added_m else "",
                 "rating_pct": float(rating_m.group(1)) if rating_m else 0.0,
@@ -699,6 +724,17 @@ def get_performer_profile(path="", name="", sort="newest", page=1):
     else:
         kind = "Creator"
 
+    # Parse Performer / Channel Avatar & Verified Badge
+    av_m = (
+        re.search(r'<img[^>]+id="getAvatar"[^>]+src="([^"]+)"', page_html, re.I)
+        or re.search(r'<img[^>]+src="([^"]+)"[^>]+id="getAvatar"', page_html, re.I)
+        or re.search(r'class="[^"]*previewAvatarPicture[^"]*"[^>]*>.*?<img[^>]+src="([^"]+)"', page_html, re.S | re.I)
+    )
+    perf_avatar = html_lib.unescape(av_m.group(1)).strip() if av_m else ""
+
+    header_scope = page_html[h1_m.start() : h1_m.start() + 2000] if h1_m else page_html[:8000]
+    perf_verified, perf_badge = extract_verified_badge(header_scope)
+
     stats = []
     for box_m in re.finditer(
         r'class="[^"]*infoPiece[^"]*"[^>]*>(.*?)</div>', page_html, re.S
@@ -725,6 +761,8 @@ def get_performer_profile(path="", name="", sort="newest", page=1):
         if not hint.get("uploader"):
             hint["uploader"] = disp_name
             hint["uploader_path"] = chosen_base
+            hint["uploader_verified"] = perf_verified
+            hint["uploader_badge"] = perf_badge
         api_v = api_objs[idx] if idx < len(api_objs) else {}
         norm = normalize_api_video(api_v or {}, listing_hint=hint)
         norm["rank"] = (page - 1) * max(len(items), 36) + idx + 1
@@ -735,6 +773,9 @@ def get_performer_profile(path="", name="", sort="newest", page=1):
         "name": disp_name,
         "path": chosen_base,
         "kind": kind,
+        "avatar": perf_avatar,
+        "verified": perf_verified,
+        "badge_title": perf_badge,
         "ph_url": f"https://www.pornhub.com{chosen_base}",
         "stats": stats[:4],
         "sort": sort,
@@ -823,18 +864,38 @@ def compute_hotspot_peaks(hotspots, duration_seconds, max_peaks=4):
     return peaks
 
 
+def _find_nested_reply_ranges(raw_html):
+    """Find exact (start, end, parent_id) byte spans of all <div class="nestedBlock childrenOf..."> containers."""
+    spans = []
+    div_tag_re = re.compile(r"<(/?)div\b[^>]*>", re.I)
+    for m in re.finditer(
+        r'<div[^>]*class="[^"]*\b(?:nestedBlock|childrenOf[a-zA-Z0-9_-]+)[^"]*"[^>]*>',
+        raw_html,
+        re.I,
+    ):
+        start = m.start()
+        if any(s <= start < e for s, e, _ in spans):
+            continue
+        pid_m = re.search(r"childrenOf([a-zA-Z0-9_-]+)", m.group(0))
+        parent_id = pid_m.group(1) if pid_m else ""
+        depth = 0
+        end = len(raw_html)
+        for tm in div_tag_re.finditer(raw_html, start):
+            if tm.group(1) == "/":
+                depth -= 1
+                if depth == 0:
+                    end = tm.end()
+                    break
+            else:
+                depth += 1
+        spans.append((start, end, parent_id))
+    return spans
+
+
 def parse_comments_from_html(raw_html):
     comments = []
     seen_ids = set()
-
-    nested_ranges = [
-        (m.start(), m.end())
-        for m in re.finditer(
-            r'<div[^>]*class="[^"]*nestedBlock\s+childrenOf[^"]*"[^>]*>.*?(?=<div[^>]*class="commentBlock\s+closestComment|$)',
-            raw_html,
-            re.S,
-        )
-    ]
+    nested_ranges = _find_nested_reply_ranges(raw_html)
 
     for m in re.finditer(
         r'<div[^>]*class="([^"]*commentBlock[^"]*)"[^>]*>(.*?)(?=<div[^>]*class="[^"]*commentBlock\b|<div[^>]*class="[^"]*moreComments|$)',
@@ -863,6 +924,32 @@ def parse_comments_from_html(raw_html):
         if not username or username == "[[username]]":
             continue
 
+        # Extract commenter avatar (PFP), verified checkmark, and optional creator profile path
+        user_wrap_m = re.search(
+            r'<div[^>]*class="[^"]*userWrap[^"]*"[^>]*>(.*?)<div[^>]*class="[^"]*commentMessage',
+            block,
+            re.S,
+        )
+        user_scope = user_wrap_m.group(1) if user_wrap_m else block[:1600]
+
+        av_m = re.search(
+            r'<img[^>]*class="[^"]*commentAvatarImg[^"]*"[^>]+(?:src|data-src)="([^"]+)"',
+            user_scope,
+            re.I,
+        ) or re.search(
+            r'<img[^>]+(?:src|data-src)="([^"]+)"[^>]*class="[^"]*commentAvatarImg[^"]*"',
+            user_scope,
+            re.I,
+        )
+        avatar = html_lib.unescape(av_m.group(1)).strip() if av_m else ""
+        if "[[" in avatar:
+            avatar = ""
+
+        is_verified, badge_title = extract_verified_badge(user_scope)
+
+        prof_m = re.search(r'href="(/(?:pornstar|model|channels)/[a-zA-Z0-9._-]+)"', user_scope)
+        profile_path = sanitize_profile_path(prof_m.group(1)) if prof_m else ""
+
         date_m = re.search(r'<div[^>]*class="date"[^>]*>\s*([^<]+?)\s*</div>', block)
         date_str = html_lib.unescape(date_m.group(1)).strip() if date_m else ""
 
@@ -883,21 +970,34 @@ def parse_comments_from_html(raw_html):
         down_m = re.search(r'thumbsDownVote[^"]*"[^>]*>\s*([+-]?\d+)\s*<', block)
         downvotes = int(down_m.group(1)) if down_m else None
 
+        parent_id = ""
+        in_nested = False
+        for n_start, n_end, n_pid in nested_ranges:
+            if n_start <= pos < n_end:
+                in_nested = True
+                parent_id = n_pid
+                break
+
         is_reply = (
-            "reply" in cls_attr.lower()
+            in_nested
+            or "reply" in cls_attr.lower()
             or "closestComment" not in cls_attr
-            or any(start <= pos <= end for start, end in nested_ranges)
         )
 
         comments.append(
             {
                 "id": cid,
                 "username": username,
+                "avatar": avatar,
+                "verified": is_verified,
+                "badge_title": badge_title,
+                "profile_path": profile_path,
                 "date": date_str,
                 "text": msg_clean,
                 "upvotes": upvotes,
                 "downvotes": downvotes,
                 "is_reply": is_reply,
+                "parent_id": parent_id,
             }
         )
 
@@ -959,6 +1059,21 @@ def get_video_watch_details(vkey):
         if av_m:
             uploader_path = sanitize_profile_path(av_m.group(1))
 
+    # Extract uploader PFP & verified badge from watch page userInfoBlock
+    uinfo_m = re.search(
+        r'class="[^"]*userInfoBlock[^"]*"[^>]*>(.*?)<div[^>]*class="[^"]*userActions',
+        whtml,
+        re.S,
+    )
+    uinfo_html = uinfo_m.group(1) if uinfo_m else ""
+    uav_m = re.search(
+        r'class="[^"]*userAvatar[^"]*"[^>]*>.*?<img[^>]+(?:src|data-src)="([^"]+)"',
+        uinfo_html or whtml[:60000],
+        re.S | re.I,
+    )
+    uploader_avatar = html_lib.unescape(uav_m.group(1)).strip() if uav_m else ""
+    uploader_verified, uploader_badge = extract_verified_badge(uinfo_html)
+
     # Extract exact star profile paths from watch page pornstarsWrapper
     star_links = []
     seen_spaths = set()
@@ -969,7 +1084,13 @@ def get_video_watch_details(vkey):
             sname = html_lib.unescape(re.sub(r"<[^>]+>", "", sm.group(2))).strip()
             if sp and sname and sp not in seen_spaths:
                 seen_spaths.add(sp)
-                star_links.append({"name": sname, "path": sp})
+                s_ver, s_badge = extract_verified_badge(sm.group(2))
+                star_links.append({
+                    "name": sname,
+                    "path": sp,
+                    "verified": s_ver or sp.startswith("/pornstar/"),
+                    "badge_title": s_badge or ("Verified Pornstar" if sp.startswith("/pornstar/") else ""),
+                })
 
     hint = {
         "id": vkey,
@@ -978,6 +1099,9 @@ def get_video_watch_details(vkey):
         "duration": "",
         "uploader": uploader,
         "uploader_path": uploader_path,
+        "uploader_avatar": uploader_avatar,
+        "uploader_verified": uploader_verified,
+        "uploader_badge": uploader_badge,
         "star_links": star_links,
     }
     if fv.get("video_duration") and not api_v.get("duration"):

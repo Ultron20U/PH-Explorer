@@ -4,27 +4,25 @@
 
 <br />
 
-[![Android APK](https://img.shields.io/badge/Android%20APK-Download%20v1.1.0-3DDC84?style=for-the-badge&logo=android&logoColor=black)](https://github.com/Ultron20U/PH-Explorer/releases/latest/download/PH-Explorer-v1.1.0-android.apk)
-[![APK Downloads](https://img.shields.io/github/downloads/Ultron20U/PH-Explorer/total?style=for-the-badge&logo=github&label=APK%20Downloads&color=FF9900)](https://github.com/Ultron20U/PH-Explorer/releases/latest)
+[![Desktop ZIP](https://img.shields.io/badge/Desktop%20(Win%2FMac%2FLinux)-Download%20ZIP-0078D4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/Ultron20U/PH-Explorer/releases/latest/download/PH-Explorer-Desktop.zip)
+[![Android APK](https://img.shields.io/badge/Android%20APK-Download%20v1.2.0-3DDC84?style=for-the-badge&logo=android&logoColor=black)](https://github.com/Ultron20U/PH-Explorer/releases/latest/download/PH-Explorer-Android.apk)
+[![Total Downloads](https://img.shields.io/github/downloads/Ultron20U/PH-Explorer/total?style=for-the-badge&logo=github&label=Total%20Downloads&color=FF9900)](https://github.com/Ultron20U/PH-Explorer/releases/latest)
 [![GitHub Stars](https://img.shields.io/github/stars/Ultron20U/PH-Explorer?style=for-the-badge&logo=github&color=FFB84D)](https://github.com/Ultron20U/PH-Explorer/stargazers)
-[![Python 3.8+](https://img.shields.io/badge/Python-3.8%2B%20(Stdlib%20Only)-3776AB?style=for-the-badge&logo=python&logoColor=white)](#quick-start-desktop)
 [![Local AI](https://img.shields.io/badge/Subtitles-Whisper.cpp%20Offline%20AI-FF9900?style=for-the-badge)](#2-hybrid-subtitle-engine-official--local-ai)
-[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux%20%7C%20Android-2ea44f?style=for-the-badge)](#android-native-apk)
 [![License: MIT](https://img.shields.io/badge/License-MIT-white?style=for-the-badge)](LICENSE)
 
 <p align="center">
-  <b>A fast, zero-bloat, self-hosted alternative frontend &amp; local media player — now for Desktop <i>and</i> Native Android.</b><br />
-  Powered by an embedded zero-dependency Python proxy — no <code>npm</code>, no accounts, and zero third-party ad or tracker scripts ever touch your device.
+  <b>An open-source, ad-free, privacy-first alternative <a href="https://www.pornhub.com">Pornhub</a> frontend, custom theater player &amp; multi-threaded Pornhub video downloader — for Windows, macOS, Linux, and Native Android.</b><br />
+  Think <i>FreeTube</i> or <i>Invidious</i>, built specifically for Pornhub: zero ads, zero trackers, zero <code>npm</code> bloat, built-in fast MP4 downloading, offline library, and local Whisper AI subtitles.
 </p>
 
 <p align="center">
-  <a href="#android-native-apk"><b>📱 Download Android APK</b></a> •
+  <a href="https://github.com/Ultron20U/PH-Explorer/releases/latest/download/PH-Explorer-Desktop.zip"><b>💻 Download PC Edition (.zip)</b></a> •
+  <a href="https://github.com/Ultron20U/PH-Explorer/releases/latest/download/PH-Explorer-Android.apk"><b>📱 Download Android APK</b></a> •
   <a href="#why-ph-explorer">Overview</a> •
   <a href="#feature-breakdown">Features</a> •
   <a href="#2-hybrid-subtitle-engine-official--local-ai">AI Subtitles</a> •
-  <a href="#quick-start-desktop">Desktop Setup</a> •
-  <a href="#keyboard-shortcuts--touch-gestures">Controls</a> •
-  <a href="#local-api-reference">API</a>
+  <a href="#keyboard-shortcuts--touch-gestures">Controls</a>
 </p>
 
 </div>
@@ -33,9 +31,9 @@
 
 ## Why PH-Explorer?
 
-Traditional tube sites bury video playback under heavy ad scripts, popups, telemetry trackers, crippled web players, and throttled single-connection downloads.
+Visiting **Pornhub** in a normal browser means dealing with aggressive ad scripts, popups, tracking pixels, a basic web player, and sketchy third-party "Pornhub downloader" websites riddled with malware.
 
-**PH-Explorer** acts like *FreeTube* or *Invidious*, running a lightweight Python proxy on `127.0.0.1` that fetches metadata cleanly, rewrites HLS manifests on the fly, proxies byte-range MP4 streams, downloads videos at maximum bandwidth using parallel connections, and even generates **real-time English subtitles offline on your CPU** when a video has no captions.
+**PH-Explorer** replaces the entire Pornhub web experience with a clean, self-hosted local proxy (`127.0.0.1`) and native Android app: browse regional Pornhub Hottest feeds, search videos/pornstars/channels, read nested comments with avatars & verified badges, stream 1080p ad-free, download MP4s at full speed with multi-threaded chunking, and generate **real-time English subtitles offline on your CPU**.
 
 > [!TIP]
 > **Zero External Python Dependencies:** The core application uses **100% Python standard library modules** (`http.server`, `urllib`, `concurrent.futures`, `threading`, `json`). If Python is installed on your machine, PH-Explorer runs immediately out of the box.
@@ -66,8 +64,8 @@ Toggle **CC** (or press <kbd>C</kbd>) on *any* streaming or downloaded video:
 ### 4. Full Discovery, Search & Performer Feeds
 - **Regional & Global Feeds** — Browse *Hottest* videos in your auto-detected region, switch between 15+ countries (`US`, `GB`, `DE`, `FR`, `JP`, `BR`, `CA`, etc.), or view *Worldwide* trending feeds.
 - **Dual-Mode Search & Live Autocomplete** — Instant client-side page filtering or full upstream search with sorting (`Featured`, `Most Viewed`, `Top Rated`, `Newest`, `Longest`), related query chips, and live search/pornstar autocomplete.
-- **Dedicated Performer & Channel Profiles** — Click any performer or uploader badge to browse their full profile banner, stats, and sortable catalog without leaving the app.
-- **Interactive Timestamped Comments** — Read Popular or Newest comments and click any `mm:ss` timestamp inside a comment to jump the video player directly to that moment.
+- **Dedicated Performer & Channel Profiles** — Click any pornstar, model, or channel badge to browse their full profile banner, avatar, verified status, stats, and sortable Pornhub catalog without leaving the app.
+- **Threaded Comments with PFPs & Verified Badges** — Read Popular or Newest Pornhub comments and nested reply threads complete with user profile pictures, verified model/partner checkmarks, and clickable `mm:ss` timestamps.
 
 ### 5. Double-`Esc` *"Chores"* Boss-Key Stealth Mode
 - Press <kbd>Esc</kbd> **twice rapidly** from anywhere in the app to instantly pause playback, mute media, swap the browser tab title, and replace the entire interface with a clean, interactive **Household Chores Checklist**.
@@ -113,8 +111,8 @@ flowchart LR
 Run the full PH-Explorer experience natively on any Android phone or tablet (Android 8.0+, `arm64-v8a` / `armeabi-v7a` / `x86_64`) — no PC required!
 
 <p align="center">
-  <a href="https://github.com/Ultron20U/PH-Explorer/releases/latest/download/PH-Explorer-v1.1.0-android.apk">
-    <img src="https://img.shields.io/badge/⬇%20Download%20Direct%20APK-PH--Explorer--v1.1.0--android.apk-3DDC84?style=for-the-badge&logo=android&logoColor=black" alt="Download Android APK" />
+  <a href="https://github.com/Ultron20U/PH-Explorer/releases/latest/download/PH-Explorer-Android.apk">
+    <img src="https://img.shields.io/badge/⬇%20Download%20Direct%20APK-PH--Explorer--Android.apk-3DDC84?style=for-the-badge&logo=android&logoColor=black" alt="Download Android APK" />
   </a>
 </p>
 
@@ -132,7 +130,10 @@ Run the full PH-Explorer experience natively on any Android phone or tablet (And
 ### Prerequisites
 - **Python 3.8 or newer** ([python.org](https://www.python.org/downloads/)) — *no `pip` packages required to run the core app!*
 
-### Option A — Clone with Git
+### Option A — 1-Click Desktop ZIP Download *(Recommended)*
+1. Download **[PH-Explorer-Desktop.zip](https://github.com/Ultron20U/PH-Explorer/releases/latest/download/PH-Explorer-Desktop.zip)** and extract the folder.
+
+### Option B — Clone with Git
 ```bash
 git clone https://github.com/Ultron20U/PH-Explorer.git
 cd PH-Explorer

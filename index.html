@@ -583,6 +583,49 @@
       display: flex;
     }
 
+    .perf-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-width: 0;
+    }
+
+    .perf-avatar {
+      width: 58px;
+      height: 58px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: #222;
+      border: 2px solid rgba(255, 144, 0, 0.55);
+      flex-shrink: 0;
+      display: none;
+    }
+
+    .perf-avatar.visible {
+      display: block;
+    }
+
+    .verified-check {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      vertical-align: middle;
+      color: #38bdf8;
+      flex-shrink: 0;
+      margin-left: 3px;
+    }
+
+    .chip-avatar {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: #262626;
+      margin-right: 5px;
+      vertical-align: middle;
+      flex-shrink: 0;
+    }
+
     .perf-info {
       display: flex;
       flex-direction: column;
@@ -778,6 +821,10 @@
     }
 
     .vcard-creator {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      max-width: 100%;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -1981,26 +2028,86 @@
       padding: 12px 0;
       border-bottom: 1px solid var(--border-subtle);
       display: flex;
-      flex-direction: column;
-      gap: 6px;
+      align-items: flex-start;
+      gap: 11px;
     }
 
     .comment-item.is-reply {
-      margin-left: 28px;
-      padding-left: 12px;
-      border-left: 2px solid var(--border);
+      margin-left: 36px;
+      padding: 10px 0 10px 14px;
+      border-left: 2px solid #2e2e36;
+    }
+
+    .comment-pfp-wrap {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: #232329;
+      border: 1px solid #303038;
+      color: #bdbdc7;
+      font-size: 13px;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      overflow: hidden;
+      margin-top: 1px;
+    }
+
+    .comment-item.is-reply .comment-pfp-wrap {
+      width: 27px;
+      height: 27px;
+      font-size: 11.5px;
+    }
+
+    .comment-pfp-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .comment-main {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
     }
 
     .comment-head {
       display: flex;
       align-items: center;
-      gap: 8px;
+      flex-wrap: wrap;
+      gap: 6px;
       font-size: 12.5px;
     }
 
     .comment-author {
       font-weight: 600;
       color: #e2e2e2;
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+    }
+
+    button.comment-author-link {
+      background: transparent;
+      border: none;
+      padding: 0;
+      font: inherit;
+      font-weight: 600;
+      color: #f3f3f7;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+    }
+
+    button.comment-author-link:hover {
+      color: var(--accent);
+      text-decoration: underline;
     }
 
     .comment-reply-tag {
@@ -2382,12 +2489,16 @@
       <!-- ======================= BROWSE & PERFORMER VIEW ======================= -->
       <section id="browseView">
         <div class="performer-banner" id="performerBanner">
-          <div class="perf-info">
-            <div class="perf-title-row">
-              <h1 id="perfNameHeading">Performer</h1>
-              <span class="perf-kind-badge" id="perfKindBadge">Pornstar</span>
+          <div class="perf-left">
+            <img id="perfAvatarImg" class="perf-avatar" alt="Profile Avatar" />
+            <div class="perf-info">
+              <div class="perf-title-row">
+                <h1 id="perfNameHeading">Performer</h1>
+                <span id="perfVerifiedSlot"></span>
+                <span class="perf-kind-badge" id="perfKindBadge">Pornstar</span>
+              </div>
+              <div class="perf-stats" id="perfStatsRow"></div>
             </div>
-            <div class="perf-stats" id="perfStatsRow"></div>
           </div>
           <div style="display:flex; gap:8px; align-items:center;">
             <button type="button" class="ui-btn" id="perfExitBtn">&larr; Hottest Feed</button>
@@ -2792,6 +2903,12 @@
       const d = document.createElement("div");
       d.textContent = s == null ? "" : String(s);
       return d.innerHTML;
+    }
+
+    function verifiedBadgeHtml(isVerified, label = "Verified", size = 14) {
+      if (!isVerified) return "";
+      const tip = esc(label || "Verified").replace(/"/g, "&quot;");
+      return `<span class="verified-check" title="${tip}" aria-label="${tip}"><svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 2.1 3.1-.4 1.2 2.9 2.9 1.2-.4 3.1L23.3 13l-2.1 2.4.4 3.1-2.9 1.2-1.2 2.9-3.1-.4L12 24.3l-2.4-2.1-3.1.4-1.2-2.9-2.9-1.2.4-3.1L.7 13l2.1-2.4-.4-3.1 2.9-1.2 1.2-2.9 3.1.4L12 2zm-1.2 13.6l5.6-5.6-1.4-1.4-4.2 4.2-2.1-2.1-1.4 1.4 3.5 3.5z"/></svg></span>`;
     }
 
     function fmtNum(n) {
@@ -3654,6 +3771,11 @@
       syncTopbarControls();
       elBrowseHeaderBar.style.display = "none";
       elPerformerBanner.classList.add("visible");
+      const elPerfAvatarImg = document.getElementById("perfAvatarImg");
+      const elPerfVerifiedSlot = document.getElementById("perfVerifiedSlot");
+      elPerfAvatarImg.classList.remove("visible");
+      elPerfAvatarImg.removeAttribute("src");
+      elPerfVerifiedSlot.innerHTML = "";
       elPerfNameHeading.textContent = name || "Loading profile...";
       elPerfStatsRow.textContent = "Fetching performer videos...";
       renderBrowseSkeletons();
@@ -3675,12 +3797,26 @@
           name: data.name,
           path: data.path,
           kind: data.kind,
+          avatar: data.avatar || "",
+          verified: !!data.verified,
+          badge_title: data.badge_title || "",
           ph_url: data.ph_url,
           stats: data.stats || [],
         };
         state.rawVideos = data.videos || [];
 
         elPerfNameHeading.textContent = data.name;
+        elPerfVerifiedSlot.innerHTML = verifiedBadgeHtml(data.verified, data.badge_title || `Verified ${data.kind || "Account"}`, 17);
+        if (data.avatar) {
+          elPerfAvatarImg.src = thumbUrl(data.avatar);
+          elPerfAvatarImg.onerror = () => {
+            const px = proxyThumbUrl(data.avatar);
+            if (px && elPerfAvatarImg.src !== px) elPerfAvatarImg.src = px;
+            else elPerfAvatarImg.classList.remove("visible");
+            elPerfAvatarImg.onerror = null;
+          };
+          elPerfAvatarImg.classList.add("visible");
+        }
         elPerfKindBadge.textContent = data.kind || "Performer";
         elPerfPhLink.href = data.ph_url || "https://www.pornhub.com";
         const statPieces = [`${data.count} videos on page ${data.page}`, ...(data.stats || [])];
@@ -3738,6 +3874,8 @@
       const tags = v.tags || [];
       const creatorLabel = stars.length > 0 ? stars[0] : v.uploader || "Pornhub";
       const creatorPath = stars.length > 0 ? "" : v.uploader_path || "";
+      const creatorVerified = stars.length > 0 ? true : !!v.uploader_verified;
+      const creatorBadge = stars.length > 0 ? "Verified Pornstar" : (v.uploader_badge || "Verified");
 
       const tagLimit = compactTags ? 3 : 4;
       const starPills = stars
@@ -3811,7 +3949,7 @@
                 data-perf-path="${esc(creatorPath)}"
                 title="View profile: ${esc(creatorLabel)}"
               >
-                ${esc(creatorLabel)}
+                <span style="overflow:hidden; text-overflow:ellipsis;">${esc(creatorLabel)}</span>${verifiedBadgeHtml(creatorVerified, creatorBadge, 13)}
               </button>
               <span class="vcard-stats">
                 ${viewsDisplay ? `<span>${viewsDisplay}</span>` : ""}
@@ -4426,8 +4564,11 @@
 
       const rows = [];
       if (v.uploader) {
+        const upAv = v.uploader_avatar
+          ? `<img class="chip-avatar" src="${esc(thumbUrl(v.uploader_avatar))}" data-proxy="${esc(proxyThumbUrl(v.uploader_avatar))}" alt="" loading="lazy" />`
+          : "";
         rows.push(
-          `<div class="watch-meta-row"><span class="watch-meta-key">Uploader</span><div class="watch-meta-val"><button type="button" class="watch-chip star-chip" data-watch-perf-name="${esc(v.uploader)}" data-watch-perf-path="${esc(v.uploader_path || "")}">${esc(v.uploader)}</button></div></div>`
+          `<div class="watch-meta-row"><span class="watch-meta-key">Uploader</span><div class="watch-meta-val"><button type="button" class="watch-chip star-chip" style="display:inline-flex; align-items:center;" data-watch-perf-name="${esc(v.uploader)}" data-watch-perf-path="${esc(v.uploader_path || "")}">${upAv}<span>${esc(v.uploader)}</span>${verifiedBadgeHtml(v.uploader_verified, v.uploader_badge || "Verified", 14)}</button></div></div>`
         );
       }
 
@@ -4436,11 +4577,11 @@
         const items =
           starLinks.length > 0
             ? starLinks
-            : (v.stars || []).map((s) => ({ name: s, path: "" }));
+            : (v.stars || []).map((s) => ({ name: s, path: "", verified: true, badge_title: "Verified Pornstar" }));
         const sHtml = items
           .map(
             (s) =>
-              `<button type="button" class="watch-chip star-chip" data-watch-perf-name="${esc(s.name)}" data-watch-perf-path="${esc(s.path || "")}">${esc(s.name)}</button>`
+              `<button type="button" class="watch-chip star-chip" style="display:inline-flex; align-items:center;" data-watch-perf-name="${esc(s.name)}" data-watch-perf-path="${esc(s.path || "")}"><span>${esc(s.name)}</span>${verifiedBadgeHtml(s.verified !== false, s.badge_title || "Verified Pornstar", 13)}</button>`
           )
           .join("");
         rows.push(`<div class="watch-meta-row"><span class="watch-meta-key">Stars</span><div class="watch-meta-val">${sHtml}</div></div>`);
@@ -4465,6 +4606,15 @@
       }
 
       elWatchMetaRows.innerHTML = rows.join("");
+
+      elWatchMetaRows.querySelectorAll("img[data-proxy]").forEach((img) => {
+        img.addEventListener("error", function onErr() {
+          const p = img.getAttribute("data-proxy");
+          if (p && img.src !== p) img.src = p;
+          else img.style.display = "none";
+          img.removeEventListener("error", onErr);
+        });
+      });
 
       elWatchMetaRows.querySelectorAll("[data-watch-perf-name]").forEach((btn) => {
         btn.addEventListener("click", () => {
@@ -4902,31 +5052,65 @@
         .map((c) => {
           const up = Number(c.upvotes || 0);
           const downDisplay = c.downvotes != null ? fmtNum(c.downvotes) : "0";
+          const initial = esc((c.username || "?").trim().charAt(0).toUpperCase() || "?");
+          const pfpInner = c.avatar
+            ? `<img src="${esc(thumbUrl(c.avatar))}" data-proxy="${esc(proxyThumbUrl(c.avatar))}" data-initial="${initial}" alt="${esc(c.username)}" loading="lazy" />`
+            : initial;
+          const badge = verifiedBadgeHtml(c.verified, c.badge_title || "Verified", 14);
+          const authorHtml = c.profile_path
+            ? `<button type="button" class="comment-author-link" data-cmt-perf-path="${esc(c.profile_path)}" data-cmt-perf-name="${esc(c.username)}"><span>${esc(c.username)}</span>${badge}</button>`
+            : `<span class="comment-author"><span>${esc(c.username)}</span>${badge}</span>`;
+
           return `
             <div class="comment-item ${c.is_reply ? "is-reply" : ""}">
-              <div class="comment-head">
-                <span class="comment-author">${esc(c.username)}</span>
-                ${c.is_reply ? `<span class="comment-reply-tag">Reply</span>` : ""}
-                ${c.date ? `<span class="comment-date">${esc(c.date)}</span>` : ""}
-              </div>
-              <div class="comment-body">${formatCommentBodyWithTimestamps(c.text)}</div>
-              <div class="comment-votes">
-                <span class="cvote ${up > 0 ? "has-up" : ""}" title="Upvotes">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>
-                  </svg>
-                  <span>${fmtNum(up)}</span>
-                </span>
-                <span class="cvote" title="${c.downvotes == null ? "Downvote count not publicly exposed by Pornhub" : "Downvotes"}">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/>
-                  </svg>
-                  <span>${downDisplay}</span>
-                </span>
+              <div class="comment-pfp-wrap">${pfpInner}</div>
+              <div class="comment-main">
+                <div class="comment-head">
+                  ${authorHtml}
+                  ${c.is_reply ? `<span class="comment-reply-tag">Reply</span>` : ""}
+                  ${c.date ? `<span class="comment-date">${esc(c.date)}</span>` : ""}
+                </div>
+                <div class="comment-body">${formatCommentBodyWithTimestamps(c.text)}</div>
+                <div class="comment-votes">
+                  <span class="cvote ${up > 0 ? "has-up" : ""}" title="Upvotes">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>
+                    </svg>
+                    <span>${fmtNum(up)}</span>
+                  </span>
+                  <span class="cvote" title="${c.downvotes == null ? "Downvote count not publicly exposed by Pornhub" : "Downvotes"}">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/>
+                    </svg>
+                    <span>${downDisplay}</span>
+                  </span>
+                </div>
               </div>
             </div>`;
         })
         .join("");
+
+      elCommentsList.querySelectorAll("img[data-proxy]").forEach((img) => {
+        img.addEventListener("error", function onErr() {
+          const p = img.getAttribute("data-proxy");
+          if (p && img.src !== p) {
+            img.src = p;
+          } else {
+            const wrap = img.parentElement;
+            if (wrap) wrap.textContent = img.getAttribute("data-initial") || "?";
+          }
+          img.removeEventListener("error", onErr);
+        });
+      });
+
+      elCommentsList.querySelectorAll("[data-cmt-perf-path]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          openPerformerFeed({
+            path: btn.getAttribute("data-cmt-perf-path") || "",
+            name: btn.getAttribute("data-cmt-perf-name") || "",
+          });
+        });
+      });
 
       elCommentsList.querySelectorAll("[data-seek-sec]").forEach((btn) => {
         btn.addEventListener("click", () => {

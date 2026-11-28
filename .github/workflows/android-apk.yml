@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build Desktop ZIP & Android APK
 
 on:
   workflow_dispatch:
@@ -8,17 +8,29 @@ on:
       - 'android/**'
       - 'server.py'
       - 'index.html'
+      - 'setup_ai.py'
+      - 'start_server.bat'
+      - 'start.sh'
       - '.github/workflows/android-apk.yml'
 
 permissions:
   contents: write
 
 jobs:
-  build-apk:
+  build-release:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Package Desktop Edition ZIP (Windows / macOS / Linux)
+        run: |
+          mkdir -p dist_pkg/PH-Explorer
+          cp index.html server.py setup_ai.py setup_ai.bat start_server.bat start.sh README.md LICENSE dist_pkg/PH-Explorer/
+          mkdir -p dist_pkg/PH-Explorer/assets
+          cp assets/banner.svg dist_pkg/PH-Explorer/assets/
+          (cd dist_pkg && zip -r ../PH-Explorer-Desktop.zip PH-Explorer)
+          ls -lh PH-Explorer-Desktop.zip
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -63,39 +75,43 @@ jobs:
             -keypass "$PHE_KEY_PASSWORD" \
             -dname "CN=PH-Explorer, OU=OpenSource, O=PH-Explorer, L=Local, S=NA, C=US"
           gradle assembleRelease --no-daemon --stacktrace
-          cp app/build/outputs/apk/release/app-release.apk ../PH-Explorer-v1.1.0-android.apk
-          ls -lh ../PH-Explorer-v1.1.0-android.apk
+          cp app/build/outputs/apk/release/app-release.apk ../PH-Explorer-Android.apk
+          ls -lh ../PH-Explorer-Android.apk
 
-      - name: Upload APK build artifact
+      - name: Upload Release Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: PH-Explorer-Android-APK
-          path: PH-Explorer-v1.1.0-android.apk
+          name: PH-Explorer-Packages
+          path: |
+            PH-Explorer-Desktop.zip
+            PH-Explorer-Android.apk
 
-      - name: Publish v1.1.0 Release with downloadable Android APK
+      - name: Publish v1.2.0 Release (Desktop ZIP + Android APK)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cat << 'EOF' > /tmp/release_notes.md
-          ### PH-Explorer v1.1.0 — Native Android APK + Desktop Multi-Platform Release
+          ### PH-Explorer v1.2.0 — Alternative Pornhub Frontend & Downloader (PC + Android)
 
-          #### 📱 Download for Android
-          - Tap **`PH-Explorer-v1.1.0-android.apk`** below on your Android phone or tablet (Android 8.0+) to download and install directly — no Play Store needed!
-          - **Embedded Python 3.11 Proxy (`Chaquopy`)**: Runs `server.py` locally inside the app on `127.0.0.1:8765` with zero ads, popups, or trackers.
-          - **Mobile Touch Controls**: **Touch-and-Hold** video for `2×` speed, **Double-Tap Left/Right** for `±10s` seek, smooth timeline finger-scrubbing with frame previews, auto-landscape fullscreen, and native **Android Picture-in-Picture (PiP)**.
-          - **Turbo Downloader & Offline Library**: Parallel multi-connection MP4 downloads + offline playback right on your phone.
-          - **Official Subtitles (`CC`) & Chores Stealth Mode**: Instant closed captions + top-bar Checklist boss-key mode (double-tap the *Household Chores* title to return).
+          #### 💻 Download Desktop Edition (Windows / macOS / Linux)
+          - Download **`PH-Explorer-Desktop.zip`** below, extract it, and double-click **`start_server.bat`** (Windows) or run **`./start.sh`** (macOS / Linux).
+          - Includes optional 1-click **`setup_ai.bat` / `setup_ai.py`** for offline local CPU Whisper AI subtitles!
 
-          #### 💻 Download for Windows / macOS / Linux
-          - Download **`Source code (zip)`** below (or `git clone`), run `start_server.bat` / `./start.sh`, and optionally run `setup_ai.py` for offline CPU Whisper AI speech-to-text subtitles.
+          #### 📱 Download Native Android Edition
+          - Tap **`PH-Explorer-Android.apk`** below on your Android phone or tablet (Android 8.0+) to install directly — no Play Store needed!
+
+          #### ✨ What's New in v1.2.0
+          - **Fixed Multi-Reply Comment Threads**: All 2nd, 3rd, and deeper replies now stay cleanly nested inside their parent comment thread.
+          - **Profile Pictures (PFPs) & Verified Checkmarks**: Displays real profile avatars and verified badges (`Verified Model`, `Content Partner`, `Verified Pornstar`) across commenters, video uploaders, video cards, and performer profile banners.
+          - **Tracked Desktop Package (`PH-Explorer-Desktop.zip`)**: Dedicated 1-click PC download package alongside `PH-Explorer-Android.apk`.
           EOF
           sed -i 's/^          //' /tmp/release_notes.md
 
-          if gh release view v1.1.0 >/dev/null 2>&1; then
-            gh release upload v1.1.0 PH-Explorer-v1.1.0-android.apk --clobber
+          if gh release view v1.2.0 >/dev/null 2>&1; then
+            gh release upload v1.2.0 PH-Explorer-Desktop.zip PH-Explorer-Android.apk --clobber
           else
-            gh release create v1.1.0 PH-Explorer-v1.1.0-android.apk \
+            gh release create v1.2.0 PH-Explorer-Desktop.zip PH-Explorer-Android.apk \
               --target "${{ github.sha }}" \
-              --title "v1.1.0 — Native Android APK + Desktop Release" \
+              --title "v1.2.0 — Alternative Pornhub Frontend (Desktop ZIP + Android APK)" \
               --notes-file /tmp/release_notes.md
           fi
