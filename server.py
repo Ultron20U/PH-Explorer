@@ -25,6 +25,7 @@ import json
 import os
 import re
 import math
+import select
 import shutil
 import socket
 import subprocess
@@ -1863,7 +1864,7 @@ def _cache_ai_result(key, res):
     _AI_SUBS_CACHE[key] = res
 
 
-def get_ai_subtitle_window(vkey="", local_file="", start=0.0, model="base"):
+def get_ai_subtitle_window(vkey="", local_file="", start=0.0, model="base", cancel_check=None):
     if not ai_tools_ready():
         raise RuntimeError("Local AI subtitle tools are not installed in Chores/tools")
     model = model if model in WHISPER_MODES else "base"
@@ -1883,6 +1884,8 @@ def get_ai_subtitle_window(vkey="", local_file="", start=0.0, model="base"):
         with _WHISPER_LOCK:
             if key in _AI_SUBS_CACHE:
                 return _AI_SUBS_CACHE[key]
+            if cancel_check and cancel_check():
+                raise ConnectionAbortedError("Subtitle request cancelled by client")
             with tempfile.TemporaryDirectory() as td:
                 wav = os.path.join(td, "a.wav")
                 actual = _decode_to_wav(
@@ -1938,6 +1941,8 @@ def get_ai_subtitle_window(vkey="", local_file="", start=0.0, model="base"):
         with _WHISPER_LOCK:
             if key in _AI_SUBS_CACHE:
                 return _AI_SUBS_CACHE[key]
+            if cancel_check and cancel_check():
+                raise ConnectionAbortedError("Subtitle request cancelled by client")
             with tempfile.TemporaryDirectory() as td:
                 media = os.path.join(td, "slice.mp4")
                 with open(media, "wb") as f:
@@ -2188,6 +2193,14 @@ class AppHandler(SimpleHTTPRequestHandler):
             except Exception as exc:
                 return self.send_json({"error": str(exc)}, status=400)
 
+        if path == "/api/shutdown":
+            client_ip = (self.client_address[0] if self.client_address else "")
+            if client_ip in ("127.0.0.1", "::1"):
+                self.send_json({"ok": True, "shutting_down": True})
+                threading.Thread(target=self.server.shutdown, daemon=True).start()
+                return
+            return self.send_json({"error": "Forbidden"}, status=403)
+
         return self.send_json({"error": "Not found"}, status=404)
 
     def do_GET(self):
@@ -2275,10 +2288,29 @@ class AppHandler(SimpleHTTPRequestHandler):
                 start = float(qs.get("start", ["0"])[0] or "0")
             except ValueError:
                 start = 0.0
+
+            def _is_aborted():
+                try:
+                    r_ready, _, _ = select.select([self.connection], [], [], 0)
+                    if r_ready:
+                        peek = self.connection.recv(1, socket.MSG_PEEK)
+                        return len(peek) == 0
+                except Exception:
+                    return True
+                return False
+
             try:
                 return self.send_json(
-                    get_ai_subtitle_window(vkey=vkey, local_file=local_file, start=start, model=model)
+                    get_ai_subtitle_window(
+                        vkey=vkey,
+                        local_file=local_file,
+                        start=start,
+                        model=model,
+                        cancel_check=_is_aborted,
+                    )
                 )
+            except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+                return
             except Exception as exc:
                 return self.send_json({"error": str(exc)}, status=502)
 
@@ -2324,6 +2356,9 @@ class AppHandler(SimpleHTTPRequestHandler):
                 return
             except Exception as exc:
                 return self.send_json({"error": str(exc)}, status=502)
+
+        if path.startswith("/api/"):
+            return self.send_json({"error": f"Unknown API endpoint: {path}"}, status=404)
 
         return super().do_GET()
 
@@ -2373,10 +2408,61 @@ def start_embedded_server(data_dir="", port=8765):
         return PORT
 
 
+def _reclaim_local_port(port):
+    """If an older server.py instance is holding 127.0.0.1:port, shut it down cleanly so start_server.bat never fails."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        probe.settimeout(0.4)
+        if probe.connect_ex(("127.0.0.1", port)) != 0:
+            return
+    try:
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/shutdown",
+            data=b"{}",
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        urllib.request.urlopen(req, timeout=1.5).read()
+        time.sleep(0.5)
+    except Exception:
+        pass
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        probe.settimeout(0.3)
+        if probe.connect_ex(("127.0.0.1", port)) != 0:
+            return
+    if os.name == "nt":
+        try:
+            out = subprocess.check_output(
+                ["netstat", "-ano", "-p", "tcp"],
+                text=True,
+                **_quiet_subprocess_kwargs(),
+            )
+            my_pid = os.getpid()
+            for line in out.splitlines():
+                if f"127.0.0.1:{port}" in line and "LISTENING" in line:
+                    pid = int(line.strip().split()[-1])
+                    if pid != my_pid and pid > 0:
+                        subprocess.run(
+                            ["taskkill", "/PID", str(pid), "/F"],
+                            **_quiet_subprocess_kwargs(),
+                        )
+            time.sleep(0.4)
+        except Exception:
+            pass
+
+
 if __name__ == "__main__":
     os.chdir(BASE_DIR)
-    server = ExclusiveThreadingHTTPServer(("127.0.0.1", PORT), AppHandler)
-    print(f"Serving Video Explorer at http://127.0.0.1:{PORT}", flush=True)
+    _reclaim_local_port(PORT)
+    server = None
+    for _attempt in range(12):
+        try:
+            server = ExclusiveThreadingHTTPServer(("127.0.0.1", PORT), AppHandler)
+            break
+        except OSError:
+            time.sleep(0.3)
+    if server is None:
+        server = ExclusiveThreadingHTTPServer(("127.0.0.1", PORT), AppHandler)
+    print(f"Serving PH-Explorer at http://127.0.0.1:{PORT}", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

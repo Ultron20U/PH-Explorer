@@ -3171,6 +3171,8 @@
       cues: [],
       windows: [],
       pending: false,
+      pendingStart: 0,
+      abortCtrl: null,
       failCount: 0,
       retryAt: 0,
       lastError: "",
@@ -3224,9 +3226,17 @@
       subs.timer = null;
     }
 
-    function subsClearAi() {
-      subs.windows = [];
+    function subsAbortPending() {
+      if (subs.abortCtrl) {
+        try { subs.abortCtrl.abort(); } catch (_) {}
+        subs.abortCtrl = null;
+      }
       subs.pending = false;
+    }
+
+    function subsClearAi() {
+      subsAbortPending();
+      subs.windows = [];
       subs.failCount = 0;
       subs.retryAt = 0;
       subs.lastError = "";
@@ -3255,11 +3265,25 @@
       const qs = new URLSearchParams({ start: start.toFixed(2), model: subs.model });
       if (ctx.file) qs.set("file", ctx.file);
       else qs.set("vkey", ctx.vkey);
+      subsAbortPending();
+      const ctrl = new AbortController();
+      subs.abortCtrl = ctrl;
       subs.pending = true;
+      subs.pendingStart = start;
       try {
-        const resp = await fetch(apiUrl(`/api/subs/ai?${qs.toString()}`));
-        const data = await resp.json();
-        if (tok !== subs.token) return;
+        const resp = await fetch(apiUrl(`/api/subs/ai?${qs.toString()}`), { signal: ctrl.signal });
+        const rawText = await resp.text();
+        if (tok !== subs.token || ctrl.signal.aborted) return;
+        let data;
+        try {
+          data = JSON.parse(rawText);
+        } catch (_) {
+          throw new Error(
+            rawText.trim().startsWith("<")
+              ? "Old server was running on port 8765 — restart start_server.bat in Chores"
+              : `Invalid server response (HTTP ${resp.status})`
+          );
+        }
         if (!resp.ok || data.error) throw new Error(data.error || `HTTP ${resp.status}`);
         const ws = data.window_start, we = data.window_end;
         subs.windows.push({ start: ws, end: we, isLast: !!data.is_last });
@@ -3270,15 +3294,28 @@
         subs.failCount = 0;
         subs.lastError = "";
       } catch (err) {
-        if (tok !== subs.token) return;
+        if (tok !== subs.token || ctrl.signal.aborted || (err && err.name === "AbortError")) return;
         subs.failCount++;
         subs.lastError = String(err.message || err);
         subs.retryAt = Date.now() + Math.min(20000, 2500 * subs.failCount);
         console.warn("AI subtitles failed:", err);
       } finally {
-        if (tok === subs.token) subs.pending = false;
+        if (subs.abortCtrl === ctrl) subs.abortCtrl = null;
+        if (tok === subs.token && !ctrl.signal.aborted) subs.pending = false;
       }
     }
+
+    // If user seeks far away while AI is transcribing an old slice, cancel the old slice immediately
+    elVideo.addEventListener("seeked", () => {
+      if (subs.source === "ai") {
+        const t = elVideo.currentTime || 0;
+        subsRenderText(t);
+        if (subs.pending && !subsCovered(t) && Math.abs(t - subs.pendingStart) > 32) {
+          subsAbortPending();
+          subsTick();
+        }
+      }
+    });
 
     function subsTick() {
       if (subs.source === "off" || state.embedMode) return;
