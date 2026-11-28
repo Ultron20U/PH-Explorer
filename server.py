@@ -1807,6 +1807,7 @@ def _run_whisper(wav_path, mode_key, out_prefix):
     cmd = (
         [
             whisper_bin, "-m", model, "-f", wav_path, "-t", str(threads),
+            "-bs", "2", "-bo", "2", "-nf", "-mc", "32",
             "-oj", "-of", out_prefix, "-np", "-ml", "72", "-sow",
         ]
         + extra_flags
@@ -1838,6 +1839,9 @@ def _clean_whisper_cues(trans, offset, window_end):
         txt = re.sub(r"\s+", " ", (seg.get("text") or "")).strip()
         low = txt.lower()
         if low in _SUB_JUNK or "blank_audio" in low:
+            continue
+        # Drop Whisper repetition-loop hallucinations on music/moans (e.g. "la la la la la")
+        if re.search(r"(\b\S+\b)(?:\s+\1){4,}", low):
             continue
         o = seg.get("offsets") or {}
         st = offset + (o.get("from") or 0) / 1000.0
