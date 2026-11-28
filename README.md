@@ -55,7 +55,7 @@ Toggle **CC** (or press <kbd>C</kbd>) on *any* streaming or downloaded video:
 - **Instant Official & Hidden Captions** — Automatically inspects player metadata for official or unexposed closed-caption tracks (`SRT` / `VTT`), parses and sanitizes timestamps, and renders them immediately.
 - **100% Offline Whisper AI Fallback** — When a video has no captions, the server extracts 24–30s audio slices (stitching fragmented MP4 `EXT-X-MAP` init headers automatically), decodes `16 kHz` mono PCM via `FFmpeg`, and runs quantized **`whisper.cpp`** inference locally on your CPU at `BELOW_NORMAL_PRIORITY` so video playback never stutters.
 - **Lookahead Prefetching & Caching** — Automatically transcribes the upcoming audio window ahead of your playhead and caches transcribed windows in memory for instant re-seeking.
-- **Two Selectable AI Profiles** — Switch anytime in the player gear menu between **`AI Fast`** (`ggml-tiny.en-q5_1`) and **`AI Accurate`** (`ggml-base.en-q5_1`).
+- **Four Selectable AI Profiles** — Switch anytime in the player settings menu between **`EN Fast`** (`tiny.en`), **`EN Accurate`** (`base.en`), **`Same Lang`** (99-language auto-detect in the original spoken language), and **`Any → EN`** (translates foreign speech directly into English subtitles).
 
 ### 3. Multi-Threaded Turbo Downloader & Offline Library
 - **Parallel Range-Chunk Engine** — Splits MP4 files into concurrent HTTP `Range` segments across worker threads to saturate your connection, displaying live MB/s throughput, progress bars, and instant cancellation.

@@ -3156,9 +3156,16 @@
     const elSubStatus = document.getElementById("subStatus");
     const elSubStatusText = document.getElementById("subStatusText");
 
+    const AI_MODE_LABELS = {
+      tiny: "EN Fast",
+      base: "EN Accurate",
+      multi: "Same Lang",
+      translate: "Any → EN",
+    };
+
     const subs = {
       enabled: localStorage.getItem("phx_subs_on") === "1",
-      pref: localStorage.getItem("phx_subs_pref") || "auto", // auto | ph | tiny | base
+      pref: localStorage.getItem("phx_subs_pref") || "auto", // auto | ph | tiny | base | multi | translate
       source: "off", // off | ph | ai
       model: "base",
       cues: [],
@@ -3284,7 +3291,7 @@
         if (subs.failCount >= 3 && subs.lastError) {
           subsSetStatus(`AI subtitles error: ${subs.lastError.slice(0, 80)}`, false);
         } else {
-          subsSetStatus(`Local AI transcribing (${subs.model})...`);
+          subsSetStatus(`Local AI (${AI_MODE_LABELS[subs.model] || subs.model})...`);
         }
       } else {
         subsSetStatus("");
@@ -3347,11 +3354,11 @@
         return;
       }
       if (subs.pref === "ph") showPlayerToast("No Pornhub captions — using local AI");
-      subs.model = subs.pref === "tiny" ? "tiny" : "base";
+      subs.model = ["tiny", "base", "multi", "translate"].includes(subs.pref) ? subs.pref : "base";
       subs.source = "ai";
       elCcBtn.classList.add("active");
       renderSubOptions();
-      if (subs.pref !== "ph") showPlayerToast(`Subtitles: Local AI (${subs.model === "tiny" ? "Fast" : "Accurate"})`);
+      if (subs.pref !== "ph") showPlayerToast(`Subtitles: Local AI (${AI_MODE_LABELS[subs.model] || subs.model})`);
       subsStartTimer();
     }
 
@@ -3384,8 +3391,10 @@
       const opts = [
         { id: "off", label: "Off", ok: true },
         { id: "ph", label: "Pornhub", ok: phOk, title: phOk ? "Official Pornhub captions" : "No Pornhub captions for this video" },
-        { id: "tiny", label: "AI Fast", ok: aiOk, title: "Local Whisper tiny.en (fastest)" },
-        { id: "base", label: "AI Accurate", ok: aiOk, title: "Local Whisper base.en (better accuracy)" },
+        { id: "tiny", label: "EN Fast", ok: aiOk, title: "Local Whisper tiny.en (fastest English)" },
+        { id: "base", label: "EN Accurate", ok: aiOk, title: "Local Whisper base.en (sharper English)" },
+        { id: "multi", label: "Same Lang", ok: aiOk, title: "99-language auto-detect — keeps subtitles in the original spoken language" },
+        { id: "translate", label: "Any → EN", ok: aiOk, title: "99-language auto-detect — translates foreign speech into English subtitles" },
       ];
       elSubOptions.innerHTML = opts
         .map(

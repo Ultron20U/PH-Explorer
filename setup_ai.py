@@ -41,6 +41,10 @@ MODELS = [
         "ggml-base.en-q5_1.bin",
         "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en-q5_1.bin",
     ),
+    (
+        "ggml-base-q5_1.bin",
+        "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base-q5_1.bin",
+    ),
 ]
 
 

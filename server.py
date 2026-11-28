@@ -1627,6 +1627,13 @@ WHISPER_CLI = os.path.join(TOOLS_DIR, "whisper", "whisper-cli.exe" if os.name ==
 WHISPER_MODELS = {
     "base": os.path.join(TOOLS_DIR, "models", "ggml-base.en-q5_1.bin"),
     "tiny": os.path.join(TOOLS_DIR, "models", "ggml-tiny.en-q5_1.bin"),
+    "multi": os.path.join(TOOLS_DIR, "models", "ggml-base-q5_1.bin"),
+}
+WHISPER_MODES = {
+    "tiny": ("tiny", []),
+    "base": ("base", []),
+    "multi": ("multi", ["-l", "auto"]),
+    "translate": ("multi", ["-l", "auto", "-tr"]),
 }
 AI_LOCAL_WINDOW = 30.0
 AI_HLS_MIN_WINDOW = 24.0
@@ -1786,18 +1793,24 @@ def get_hls_audio_plan(vkey, force=False):
     return ent
 
 
-def _run_whisper(wav_path, model_key, out_prefix):
+def _run_whisper(wav_path, mode_key, out_prefix):
     whisper_bin = _resolve_whisper_cli()
     if not whisper_bin:
         raise RuntimeError("whisper-cli not found. Run python setup_ai.py first.")
-    model = WHISPER_MODELS.get(model_key)
+    model_slot, extra_flags = WHISPER_MODES.get(mode_key, ("base", []))
+    model = WHISPER_MODELS.get(model_slot)
     if not model or not os.path.isfile(model):
+        if model_slot == "multi":
+            raise RuntimeError("Multilingual model missing — run setup_ai.bat (or python setup_ai.py) once.")
         model = next(p for p in WHISPER_MODELS.values() if os.path.isfile(p))
     threads = max(2, min(6, (os.cpu_count() or 4) - 2))
-    cmd = [
-        whisper_bin, "-m", model, "-f", wav_path, "-t", str(threads),
-        "-oj", "-of", out_prefix, "-np", "-ml", "72", "-sow",
-    ]
+    cmd = (
+        [
+            whisper_bin, "-m", model, "-f", wav_path, "-t", str(threads),
+            "-oj", "-of", out_prefix, "-np", "-ml", "72", "-sow",
+        ]
+        + extra_flags
+    )
     r = subprocess.run(cmd, timeout=240, **_quiet_subprocess_kwargs())
     if r.returncode != 0:
         raise RuntimeError("Whisper failed: " + r.stderr.decode("utf-8", "ignore")[-300:])
@@ -1849,7 +1862,7 @@ def _cache_ai_result(key, res):
 def get_ai_subtitle_window(vkey="", local_file="", start=0.0, model="base"):
     if not ai_tools_ready():
         raise RuntimeError("Local AI subtitle tools are not installed in Chores/tools")
-    model = model if model in WHISPER_MODELS else "base"
+    model = model if model in WHISPER_MODES else "base"
     start = max(0.0, float(start))
     t0 = time.time()
 
